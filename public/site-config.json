@@ -1,7 +1,7 @@
 {
   "version": 1,
   "download": {
-    "enabled": true,
+    "enabled": false,
     "comingSoonText": "Your next adventure is on its way. Come back soon!"
   },
   "stores": {
