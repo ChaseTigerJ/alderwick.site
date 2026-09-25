@@ -13,3 +13,4 @@
 @media(min-width:1500px){.hero-copy{padding-top:95px}.world-settings{bottom:100px}}
 @media(min-width:801px){.island-caption{top:70px}.scene-bottom .drag-hint{color:var(--ink)}}
 @media(max-width:480px){h1{font-size:58px;letter-spacing:-2.4px;line-height:.95}.hero{min-height:930px}.world-stage{top:310px;height:510px;left:-20%;right:-20%}.island-caption{display:none}.hero-description{margin-bottom:24px}}
+@media(max-width:480px){h1{font-size:clamp(47px,14.9vw,58px)}}
