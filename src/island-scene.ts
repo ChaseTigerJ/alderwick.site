@@ -5,10 +5,12 @@ import { createIslandLife } from './island-life';
 import { createIslandAtmosphere } from './island-atmosphere';
 import { attachIslandInteractions } from './island-interactions';
 import { createBellChime } from './island-sound';
+import { attachIslandDrag } from './island-drag';
+import type { WorldSettings } from './site-config';
 import type { Season } from './Island';
 
 export type IslandController = { rotate: (amount: number) => void; zoom: (amount: number) => void; reset: () => void; dispose: () => void };
-type State = { night: boolean; season: Season; paused: boolean; reducedMotion: boolean; found: number[]; action?: { id: number; nonce: number } | null };
+type State = { night: boolean; season: Season; paused: boolean; reducedMotion: boolean; found: number[]; worldSettings: WorldSettings; action?: { id: number; nonce: number } | null };
 export async function createIsland(host: HTMLDivElement, state: () => State, discover: (id: number) => void): Promise<IslandController> {
   const scene = new THREE.Scene();
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -29,6 +31,8 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   const blockTouchPointer = (event: PointerEvent) => { if (event.pointerType === 'touch') event.stopImmediatePropagation(); };
   canvas.addEventListener('pointerdown', blockTouchPointer, true);
   let touchDistance = 0, touchX = 0, touchY = 0, sceneDirty = true;
+  let shakeWorld = (_dx: number, _dy: number) => {};
+  const removeDrag = attachIslandDrag(canvas, (dx, dy) => shakeWorld(dx, dy));
   const onControlsChange = () => { sceneDirty = true; };
   controls.addEventListener('change', onControlsChange);
   const offset = new THREE.Vector3(), spherical = new THREE.Spherical();
@@ -50,6 +54,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
       spherical.radius = THREE.MathUtils.clamp(spherical.radius * touchDistance / pair.distance, 10, 35);
       spherical.theta -= (pair.x - touchX) * .008;
       spherical.phi = THREE.MathUtils.clamp(spherical.phi - (pair.y - touchY) * .006, .55, 1.35);
+      shakeWorld((pair.x - touchX) * .008, (pair.y - touchY) * .006);
       offset.setFromSpherical(spherical); camera.position.copy(controls.target).add(offset); controls.update(); sceneDirty = true;
     }
     touchDistance = pair.distance; touchX = pair.x; touchY = pair.y;
@@ -65,6 +70,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   const ambient = new THREE.HemisphereLight(0xfff6de, 0x8d927c, 1.5); scene.add(ambient);
   const rim = new THREE.DirectionalLight(0xb8d6d0, 1.2); rim.position.set(5, 5, -8); scene.add(rim);
   function removeControls() {
+    removeDrag();
     controls.removeEventListener('change', onControlsChange);
     controls.dispose(); canvas.removeEventListener('pointerdown', blockTouchPointer, true);
     canvas.removeEventListener('touchstart', touchStart); canvas.removeEventListener('touchmove', touchMove);
@@ -87,9 +93,14 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   });
   const life = createIslandLife(scene, model.scene);
   const atmosphere = createIslandAtmosphere(scene, model.scene);
+  shakeWorld = (dx, dy) => {
+    const s = state();
+    if (s.season === 'winter' && !s.paused && !s.reducedMotion && s.worldSettings.animationEnabled && s.worldSettings.effectsEnabled && s.worldSettings.shakeEnabled) atmosphere.shake(dx, dy);
+  };
   const bellChime = createBellChime();
   let clickedTree: THREE.Vector3 | undefined;
   const removeInteractions = attachIslandInteractions(host, canvas, camera, model.scene, (id, point) => {
+    if (!state().worldSettings.discoveriesEnabled) return;
     if (id === 5 && t - lastRustle <= 5) return;
     if (!life.isActive(id)) { clickedTree = point?.clone(); discover(id); }
   });
@@ -127,7 +138,18 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   let width = 1, height = 1, disposed = false, frame = 0, t = 0, last = performance.now(), lastSeason: Season | '' = '';
   let nightMix = state().night ? 1 : 0, visible = true, lastRender = 0, lastShadow = -1, lastAction = -1, viewScale = 1, lastRustle = -100;
   const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; sceneDirty = true; }, { rootMargin: '100px' }); observer.observe(host);
-  const resize = new ResizeObserver(() => { width = host.clientWidth; height = host.clientHeight; if (!width || !height) return; const fit = Math.max(1, 390 / window.innerWidth); offset.copy(camera.position).sub(controls.target).multiplyScalar(fit / viewScale); camera.position.copy(controls.target).add(offset); viewScale = fit; camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height); sceneDirty = true; }); resize.observe(host);
+  const resize = new ResizeObserver(() => {
+    width = host.clientWidth; height = host.clientHeight; if (!width || !height) return;
+    const fit = Math.max(1, 390 / window.innerWidth);
+    offset.copy(camera.position).sub(controls.target).multiplyScalar(fit / viewScale); camera.position.copy(controls.target).add(offset); viewScale = fit;
+    camera.aspect = width / height;
+    // The canvas spans the hero so enlarged scenery can flow behind the copy.
+    // Offset projection retains the island's right-hand composition without clipping it at the text column.
+    if (window.innerWidth > 800) camera.setViewOffset(width, height, -width * .16, 0, width, height);
+    else camera.clearViewOffset();
+    camera.updateProjectionMatrix(); renderer.setSize(width, height); sceneDirty = true;
+  }); resize.observe(host);
+  let lastWorldSettings: WorldSettings | null = null;
   const dayWater = new THREE.Color(0x62a9a2), nightWater = new THREE.Color(0x183749);
   const winterColor = new THREE.Color(0xdfebe1), roofSnow = new THREE.Color(0xf6f1df), summerGreen = new THREE.Color(0x589045), springGreen = new THREE.Color(0x91ab67);
   function animate(now: number) {
@@ -136,12 +158,14 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     if (now - lastRender < 30) return;
     lastRender = now; const delta = THREE.MathUtils.clamp((now - last) / 1000, 0, .05); last = now;
     if (!visible || document.hidden) return;
-    const s = state(), motion = !s.paused && !s.reducedMotion;
+    const s = state(), motion = !s.paused && !s.reducedMotion && s.worldSettings.animationEnabled;
+    if (s.worldSettings !== lastWorldSettings) { atmosphere.configure(s.worldSettings); lastWorldSettings = s.worldSettings; sceneDirty = true; }
     if (s.action && s.action.nonce !== lastAction) {
       lastAction = s.action.nonce;
-      if (s.action.id === 5) {
+      if (!s.worldSettings.discoveriesEnabled) { /* Preserve the nonce without triggering disabled discoveries. */ }
+      else if (s.action.id === 5) {
         if (t - lastRustle > 5 || !motion) { atmosphere.rustleTrees(clickedTree); clickedTree = undefined; lastRustle = t; }
-      } else if (life.trigger(s.action.id, !motion) && s.action.id === 3) bellChime.play();
+      } else if (life.trigger(s.action.id, !motion) && s.action.id === 3 && s.worldSettings.soundEnabled) bellChime.play();
       sceneDirty = true; renderer.shadowMap.needsUpdate = true;
     }
     if (motion) t += delta;
@@ -152,7 +176,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     nightMix = THREE.MathUtils.damp(nightMix, s.night ? 1 : 0, s.reducedMotion ? 100 : 3, delta);
     sun.intensity = THREE.MathUtils.lerp(3, .35, nightMix); sun.color.setRGB(1 - nightMix * .42, .86 - nightMix * .16, .68 + nightMix * .32);
     ambient.intensity = THREE.MathUtils.lerp(1.5, .48, nightMix); ambient.color.set(s.night ? 0xadc5ff : 0xfff6de); rim.intensity = THREE.MathUtils.lerp(1.2, .9, nightMix);
-    waterMat.color.copy(dayWater).lerp(nightWater, nightMix); starMat.opacity = nightMix * .8;
+    waterMat.color.copy(dayWater).lerp(nightWater, nightMix); starMat.opacity = s.worldSettings.effectsEnabled ? nightMix * .8 : 0;
     if (lastSeason !== s.season) {
       lastSeason = s.season;
       for (const { material, base, name } of materials) {
@@ -170,6 +194,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     for (const { material, name } of materials) if (/window|glow|lantern/.test(name)) { material.emissive.set(0xffb948); material.emissiveIntensity = .12 + nightMix * 2 * flutter; }
     flames.forEach(({ light, base, phase }) => { const flicker = s.reducedMotion ? 1 : 1 + Math.sin(t * 7.1 + phase) * .055 + Math.sin(t * 12.8 + phase * 2) * .03; light.intensity = nightMix * base * flicker; });
     smoke.forEach(({ mesh, origin, phase }) => {
+      mesh.visible = s.worldSettings.effectsEnabled;
       const age = ((phase + t * .115) % 1), rise = age * 1.65;
       mesh.position.copy(origin); mesh.position.y += .045 + rise;
       mesh.position.x += rise * .27 + Math.sin(age * 5 + phase) * .035 * age; mesh.position.z += rise * .08;

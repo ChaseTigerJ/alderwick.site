@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pause, Play } from '@phosphor-icons/react';
 import type { IslandController } from './island-scene';
-import type { Season } from './site-config';
+import type { Season, WorldSettings } from './site-config';
 import { discoveries } from './discoveries';
 export type { Season } from './site-config';
-type Props = { night: boolean; season: Season; paused: boolean; reducedMotion: boolean; found: number[]; onDiscover: (id: number) => void; action?: { id: number; nonce: number } | null; onTogglePause: () => void };
+type Props = { night: boolean; season: Season; paused: boolean; reducedMotion: boolean; found: number[]; worldSettings: WorldSettings; onDiscover: (id: number) => void; action?: { id: number; nonce: number } | null; onTogglePause: () => void };
 export default function Island(props: Props) {
   const host = useRef<HTMLDivElement>(null);
   const controller = useRef<IslandController | null>(null);
@@ -32,16 +32,16 @@ export default function Island(props: Props) {
       else return;
       event.preventDefault();
     }} />
-    <p className="sr-only" id="island-keyboard-help">Use left and right arrow keys to rotate, plus and minus to zoom, and Home to reset the view. On a mouse, drag to rotate and scroll to zoom. On touchscreens, use two fingers to explore or pinch to zoom; one finger scrolls the page. Click objects in the world to discover their stories, or press Tab to reach the six discovery buttons.</p>
+    <p className="sr-only" id="island-keyboard-help">Use left and right arrow keys to rotate, plus and minus to zoom, and Home to reset the view. On a mouse, drag to rotate and scroll to zoom. On touchscreens, use two fingers to explore or pinch to zoom; one finger scrolls the page.{props.worldSettings.discoveriesEnabled && ` Click objects in the world to discover their stories, or press Tab to reach the ${discoveries.length} discovery buttons.`}</p>
     {status === 'loading' && <div className="scene-loading" role="status"><span className="loading-line" />A little world is waking up…</div>}
     {status === 'error' && <div className="scene-fallback"><img src={`${import.meta.env.BASE_URL}island-poster.webp`} alt="Alderwick’s miniature coastal settlement" /><p>The harbor looks lovely from here. Try a browser with WebGL to explore in 3D.</p></div>}
-    {status === 'ready' && <div className="keyboard-discoveries" role="group" aria-label="Island discoveries" onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); host.current?.focus(); } }}>
+    {status === 'ready' && props.worldSettings.discoveriesEnabled && <div className="keyboard-discoveries" role="group" aria-label="Island discoveries" onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); host.current?.focus(); } }}>
       <p>Explore a little closer</p>
       <ul>{discoveries.map((discovery, index) => <li key={discovery.icon}><button onClick={() => props.onDiscover(index)}>{discovery.actionLabel}{props.found.includes(index) && <span className="sr-only"> — discovered</span>}</button></li>)}</ul>
       <span>Escape returns to the world.</span>
     </div>}
     <div className="scene-bottom">
-      <button className="mobile-motion-control icon-button" aria-label={props.paused ? 'Resume world animation' : 'Pause world animation'} aria-pressed={props.paused} onClick={props.onTogglePause}>{props.paused ? <Play size={15} /> : <Pause size={15} />}</button>
+      {props.worldSettings.animationEnabled && <button className="mobile-motion-control icon-button" aria-label={props.paused ? 'Resume world animation' : 'Pause world animation'} aria-pressed={props.paused} onClick={props.onTogglePause}>{props.paused ? <Play size={15} /> : <Pause size={15} />}</button>}
     </div>
   </div>;
 }

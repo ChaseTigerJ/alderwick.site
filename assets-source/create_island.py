@@ -18,6 +18,7 @@ def material(name,h,emit=0):
 for n,h in {'grass_ground':'788B57','grass_tufts':'8C9F67','sand':'C6B68B','cliff':'8D7560','cliff_light':'A8957C','cliff_dark':'75665C','wood':'574536','wood_light':'9E7D52','plaster':'E7D6AE','plaster_alt':'C8B88E','roof':'B66147','roof_light':'C77852','roof_green':'344F47','roof_green_light':'4C6A57','stone':'9C9A88','leaf_gold':'C9903D','leaf_orange':'B76C36','leaf_light':'D8AB55','leaf_green':'728148','leaf_pine':'365B48','leaf_pine_light':'50735A','canvas':'F3E1B7','iron':'424A40','berry':'954D46','pumpkin':'D38138','dog':'B69665','pink':'D394AC'}.items():material(n,h)
 material('window_glow','FFE2A0',.3)
 material('brass','C79C4A');material('brass_dark','795730')
+material('church_clapboard','E6DFC8');material('church_trim','F4EED9');material('roof_church','657063');material('roof_church_courses','818B79')
 M['brass'].node_tree.nodes.get('Principled BSDF').inputs['Roughness'].default_value=.46
 # Dedicated dog colors prevent seasonal vegetation changes from recoloring Khloe.
 for name,color in {'shepherd_tan':'B58B56','shepherd_gold':'CBA56F','shepherd_cream':'D9BC8A','shepherd_sable':'554536','shepherd_black':'292A25','shepherd_nose':'202421','shepherd_eye':'120F0C','shepherd_inner_ear':'785F52','shepherd_pink':'D793AD'}.items():material(name,color)
@@ -69,7 +70,7 @@ def path(n,points,width):
  mesh(n,v,[(i*2,i*2+1,i*2+3,i*2+2) for i in range(len(points)-1)],'sand')
 path('Harbor lane',[(.65,-4),(.45,-3),(-.1,-2.1),(-.3,-1.1),(.3,-.1),(.4,1.2),(.3,2.2)],.63)
 path('Village lane',[(-4,-.5),(-2.8,-.7),(-1.6,-1.15),(-.3,-1.1),(1.3,-1.1),(2.8,-.6),(3.7,.3)],.53)
-path('Garden lane',[(-2.8,-.7),(-3,-1.6),(-3.3,-2.2)],.4)
+path('Garden lane',[(-2.8,-.7),(-3,-1.07),(-3.08,-1.18)],.26)
 def window(x,y,z,w=.32,h=.39,side=False):
  # Put the emitter outside the pane so it can light the wall and path.
  anchor('WindowLight',(x+.28,y,z-.04) if side else (x,y-.28,z-.04))
@@ -77,11 +78,49 @@ def window(x,y,z,w=.32,h=.39,side=False):
   cube('Window oak frame',(x,y,z),(w+.085,.055,h+.085),'wood');cube('Warm windowpane',(x,y-.035,z),(w,.035,h),'window_glow');cube('Window mullion',(x,y-.06,z),(.035,.025,h),'wood');cube('Window transom',(x,y-.06,z+.015),(w,.025,.035),'wood');cube('Deep window sill',(x,y-.095,z-h/2-.02),(w+.13,.18,.05),'wood_light')
  else:
   cube('Side window frame',(x,y,z),(.055,w+.085,h+.085),'wood');cube('Side warm windowpane',(x+.035,y,z),(.035,w,h),'window_glow');cube('Side window mullion',(x+.06,y,z),(.025,.035,h),'wood');cube('Side window transom',(x+.06,y,z+.015),(.025,w,.035),'wood');cube('Side window sill',(x+.095,y,z-h/2-.02),(.18,w+.13,.05),'wood_light')
-def cottage(name,x,y,w=1.7,d=1.8,h=1.25,rot=0,green=False,hall=False):
+def make_mailbox():
+ # A small wall-mounted box. The leaf hinges at its lower edge.
+ mailbox=empty('Mailbox');mailbox_start=set(bpy.data.objects)
+ # Four walls leave an actual dark interior revealed by the animated front flap.
+ cube('Mailbox interior floor',(0,0,.69),(.5,.48,.05),'wood')
+ cube('Mailbox left side',(-.25,0,.87),(.055,.48,.37),'roof_green')
+ cube('Mailbox right side',(.25,0,.87),(.055,.48,.37),'roof_green')
+ cube('Mailbox back',(0,.22,.87),(.5,.05,.37),'roof_green')
+ mesh('Mailbox pitched roof',[(-.325,-.31,1.05),(.325,-.31,1.05),(0,-.31,1.225),(-.325,.31,1.05),(.325,.31,1.05),(0,.31,1.225)],[(0,3,5,2),(2,5,4,1),(0,2,1),(3,4,5)],'roof_green_light')
+ beam('Mailbox roof ridge',(0,-.33,1.23),(0,.33,1.23),.019,'brass',6)
+ # A little raised postal flag makes the object legible even on a small screen.
+ beam('Mailbox flag pole',(.307,.015,.83),(.307,.015,1.135),.014,'brass_dark',6)
+ cube('Mailbox raised flag',(.307,-.06,1.08),(.022,.155,.105),'berry',.009)
+ mailbox_door=empty('MailboxDoor',(0,-.255,.65));door_start=set(bpy.data.objects)
+ cube('Mailbox hinged front',(0,-.265,.85),(.455,.047,.37),'roof_green',.012)
+ cube('Mailbox cream letter plaque',(0,-.293,.858),(.30,.014,.145),'canvas',.008)
+ # Embossed envelope chevron rather than text that would disappear at this scale.
+ for sign in [-1,1]:beam('Mailbox envelope seal line',(sign*.143,-.304,.92),(0,-.304,.844),.008,'brass_dark',4)
+ ico('Mailbox brass latch',(0,-.314,1.002),(.023,.015,.022),'brass',1)
+ for xx in [-.17,.17]:beam('Mailbox hinge pin',(xx-.027,-.262,.65),(xx+.027,-.262,.65),.019,'brass',8)
+ bpy.context.view_layer.update()
+ for ob in set(bpy.data.objects)-door_start:parent_preserving_world(ob,mailbox_door)
+ letter_anchor=empty('PipLetterAnchor',(0,-.34,.87))
+ mailbox_objects=set(bpy.data.objects)-mailbox_start;bpy.context.view_layer.update()
+ for ob in mailbox_objects:
+  if ob.parent not in mailbox_objects:parent_preserving_world(ob,mailbox)
+ return mailbox
+
+def cottage(name,x,y,w=1.7,d=1.8,h=1.25,rot=0,green=False,interactive=False):
  start=set(bpy.data.objects);roof='roof_green' if green else 'roof';line='roof_green_light' if green else 'roof_light'
  footprint=anchor('CottageFootprint',(0,0,0))
  for key,value in {'label':name,'wallWidth':w,'wallDepth':d,'roofWidth':w+.32,'roofDepth':d+.34,'wallHeight':h+.17,'roofTop':h+.17+w*.59+.12}.items():footprint[key]=value
- cube('Stone foundation',(0,0,.08),(w+.15,d+.14,.18),'stone',.025);cube('Limewashed walls',(0,0,.17+h/2),(w,d,h),'plaster' if not green else 'plaster_alt');rz=.17+h;apex=rz+w*.59
+ cube('Stone foundation',(0,0,.08),(w+.15,d+.14,.18),'stone',.025)
+ wall_material='plaster' if not green else 'plaster_alt'
+ if interactive:
+  # A genuine opening: no plaster or solid door-surround sits behind the leaf.
+  gap=.54;top=1.08;side_width=(w-gap)/2
+  for sign in [-1,1]:cube('Entry side wall',(sign*(gap/2+side_width/2),0,.17+h/2),(side_width,d,h),wall_material)
+  cube('Entry upper wall',(0,0,(top+.17+h)/2),(gap,d,.17+h-top),wall_material)
+  cube('Cottage back wall',(0,d/2-.065,.17+h/2),(gap,.13,h),wall_material)
+  cube('Doorway dark interior',(0,-d/2+.34,.625),(.51,.018,.91),'iron')
+ else:cube('Limewashed walls',(0,0,.17+h/2),(w,d,h),wall_material)
+ rz=.17+h;apex=rz+w*.59
  mesh('Plaster gables',[(-w/2,-d/2,rz),(w/2,-d/2,rz),(0,-d/2,apex),(-w/2,d/2,rz),(w/2,d/2,rz),(0,d/2,apex)],[(0,1,2),(5,4,3)],'plaster');e=w/2+.16;dep=d/2+.17
  for side in [-1,1]:
   mesh('Steep roof',[(side*e,-dep,rz-.03),(side*e,dep,rz-.03),(0,dep,apex+.085),(0,-dep,apex+.085),(side*e,-dep,rz-.12),(side*e,dep,rz-.12),(0,dep,apex),(0,-dep,apex)],[(0,1,2,3),(4,7,6,5),(0,4,5,1),(3,2,6,7),(0,3,7,4),(1,5,6,2)],roof)
@@ -90,54 +129,148 @@ def cottage(name,x,y,w=1.7,d=1.8,h=1.25,rot=0,green=False,hall=False):
   for yy in [-dep+.28,0,dep-.3]:beam('Roof seams',(side*e,yy,rz-.02),(0,yy,apex+.095),.01,line,4)
  beam('Ridge cap',(0,-dep-.025,apex+.09),(0,dep+.025,apex+.09),.047,line)
  for xx in [-w/2+.025,w/2-.025]:cube('Corner timber',(xx,-d/2-.012,.16+h/2),(.078,.077,h+.06),'wood_light')
- for zz in [.21,rz-.05]:cube('Front timber',(0,-d/2-.025,zz),(w+.025,.065,.07),'wood_light');cube('Side timber',(w/2+.025,0,zz),(.065,d,.065),'wood_light')
- for f in [.27,.52,.76]:cube('Clapboard front',(0,-d/2-.012,.18+h*f),(w,.032,.026),'plaster_alt');cube('Clapboard side',(w/2+.013,0,.18+h*f),(.032,d,.026),'plaster_alt')
+ for zz in [.21,rz-.05]:
+  if interactive and zz<1.08:
+   for sign in [-1,1]:cube('Front timber',(sign*(.27+(w/2-.27)/2),-d/2-.025,zz),(w/2-.27,.065,.07),'wood_light')
+  else:cube('Front timber',(0,-d/2-.025,zz),(w+.025,.065,.07),'wood_light')
+  cube('Side timber',(w/2+.025,0,zz),(.065,d,.065),'wood_light')
+ for f in [.27,.52,.76]:
+  zz=.18+h*f
+  if interactive and zz<1.08:
+   for sign in [-1,1]:cube('Clapboard front',(sign*(.27+(w/2-.27)/2),-d/2-.012,zz),(w/2-.27,.032,.026),'plaster_alt')
+  else:cube('Clapboard front',(0,-d/2-.012,zz),(w,.032,.026),'plaster_alt')
+  cube('Clapboard side',(w/2+.013,0,zz),(.032,d,.026),'plaster_alt')
  for side in [-1,1]:beam('Gable timber',(side*w/2,-d/2-.04,rz),(0,-d/2-.04,apex),.035,'wood_light',4)
  beam('Gable kingpost',(0,-d/2-.035,rz),(0,-d/2-.035,apex-.07),.035,'wood_light',4)
- cube('Door surround',(0,-d/2-.045,.55),(.42,.09,.82),'wood');cube('Forest door',(0,-d/2-.1,.55),(.32,.04,.71),'roof_green')
- for dx in [-.09,0,.09]:cube('Door boards',(dx,-d/2-.126,.55),(.014,.008,.66),'roof_green_light')
- ico('Brass knob',(.11,-d/2-.15,.53),(.035,.022,.035),'leaf_light');cube('Front step',(0,-d/2-.23,.085),(.59,.36,.14),'stone',.015)
+ if interactive:
+  for xx in [-.29,.29]:cube('Door jamb',(xx,-d/2-.055,.625),(.065,.1,1.025),'wood')
+  cube('Door lintel',(0,-d/2-.055,1.105),(.645,.1,.065),'wood')
+  door=empty('VillageDoor',(-.25,-d/2-.11,.17));door_start=set(bpy.data.objects)
+  cube('Working cottage door',(0,-d/2-.105,.625),(.5,.042,.91),'roof_green')
+  for dx in [-.18,-.09,0,.09,.18]:cube('Door boards',(dx,-d/2-.129,.625),(.014,.009,.855),'roof_green_light')
+  ico('Brass door latch',(.18,-d/2-.16,.64),(.025,.017,.027),'brass')
+  for zz in [.37,.88]:cube('Door iron strap',(-.10,-d/2-.14,zz),(.29,.022,.033),'iron')
+  bpy.context.view_layer.update()
+  for ob in set(bpy.data.objects)-door_start:parent_preserving_world(ob,door)
+  empty('DoorVisitorStart',(0,-d/2+.13,.17));empty('DoorVisitorEnd',(0,-d/2-.76,.03))
+  mailbox=make_mailbox();mailbox.scale=(.30,.30,.30);mailbox.location=(.49,-d/2-.081,.125)
+ else:
+  cube('Door surround',(0,-d/2-.045,.55),(.42,.09,.82),'wood');cube('Forest door',(0,-d/2-.1,.55),(.32,.04,.71),'roof_green')
+  for dx in [-.09,0,.09]:cube('Door boards',(dx,-d/2-.126,.55),(.014,.008,.66),'roof_green_light')
+  ico('Brass knob',(.11,-d/2-.15,.53),(.035,.022,.035),'leaf_light')
+ cube('Front step',(0,-d/2-.23,.085),(.66 if interactive else .59,.36,.14),'stone',.015)
  window(-w*.32,-d/2-.055,.78,w=.3 if w<2 else .4);window(w*.32,-d/2-.055,.78,w=.3 if w<2 else .4);window(w/2+.052,-d*.26,.83,side=True);window(w/2+.052,d*.26,.83,side=True)
  for xx in [-w*.32,w*.32]:
+  if interactive and xx>0:continue  # The tiny letterbox occupies this wall below the window.
   cube('Herb box',(xx,-d/2-.17,.48),(.41,.17,.11),'wood_light')
   for dd in [-.12,0,.12]:ico('Window herbs',(xx+dd,-d/2-.17,.59),(.1,.09,.09),'leaf_green')
  cube('Chimney',(-w*.25,d*.24,apex-.04),(.26,.3,.8),'plaster_alt',.025);cube('Chimney cap',(-w*.25,d*.24,apex+.37),(.34,.37,.095),'stone');cube('Chimney soot',(-w*.25,d*.24,apex+.42),(.18,.2,.005),'iron')
  anchor('ChimneySmoke',(-w*.25,d*.24,apex+.435))
- if hall:
-  tz=apex+.08;cube('Cupola base',(0,.3,tz+.11),(.59,.57,.18),'plaster')
-  for xx in [-.23,.23]:
-   for yy in [.08,.52]:cube('Cupola post',(xx,yy,tz+.46),(.065,.065,.62),'wood_light')
-  # A real flared brass bell hanging from a horizontal axle in the open belfry.
-  # Local X stays the ringing axis after the whole cottage is rotated.
-  beam('Bell suspension axle',(-.27,.3,tz+.70),(.27,.3,tz+.70),.027,'iron',8)
-  bell=empty('ChurchBell',(0,.3,tz+.70));bell_start=set(bpy.data.objects)
-  profile=[(.185,.34),(.18,.375),(.15,.40),(.115,.48),(.09,.575),(.065,.625)]
-  verts=[];sides=16
-  for radius,zz in profile:
-   verts.extend([(math.cos(i*math.tau/sides)*radius,.3+math.sin(i*math.tau/sides)*radius,tz+zz) for i in range(sides)])
-  faces=[]
-  for band in range(len(profile)-1):
-   for i in range(sides):faces.append((band*sides+i,band*sides+(i+1)%sides,(band+1)*sides+(i+1)%sides,(band+1)*sides+i))
-  faces.append(tuple(range((len(profile)-1)*sides,len(profile)*sides)))
-  mesh('Flared brass church bell',verts,faces,'brass')
-  cone('Bell mouth shadow',(0,.3,tz+.357),.156,.156,.012,'brass_dark',16)
-  beam('Bell crown',(0,.3,tz+.62),(0,.3,tz+.695),.038,'brass',8)
-  beam('Bell clapper stem',(0,.3,tz+.4),(0,.3,tz+.30),.017,'iron',6)
-  ico('Bell clapper',(0,.3,tz+.297),(.035,.035,.04),'brass_dark',2)
-  hit=empty('BellHitArea',(0,.3,tz+.48));hit['radius']=.26
-  bpy.context.view_layer.update()
-  for ob in set(bpy.data.objects)-bell_start:parent_preserving_world(ob,bell)
-  cone('Cupola roof',(0,.3,tz+.86),.49,0,.5,'roof_green',4).rotation_euler.z=math.pi/4;beam('Weathervane',(0,.3,tz+1.08),(0,.3,tz+1.42),.018,'iron');beam('Vane arrow',(-.21,.3,tz+1.33),(.23,.3,tz+1.33),.018,'iron')
-  cube('Tavern sign bracket',(w/2+.22,-d/2-.16,1.1),(.45,.075,.065),'wood');cube('Tavern sign',(w/2+.34,-d/2-.16,.87),(.25,.07,.26),'roof_green',.02);ico('Sign golden leaf',(w/2+.34,-d/2-.21,.87),(.07,.02,.09),'leaf_gold')
  objs=set(bpy.data.objects)-start
  # Transform roots only: bell meshes already inherit their animated parent.
  transform([ob for ob in objs if ob.parent not in objs],x,y,rot=rot)
  for ob in objs:
   if ob.type!='EMPTY':ob.name=name+' | '+ob.name
-cottage('Alder and Anchor',.65,1.18,2.05,2.05,1.52,-.06,hall=True)
-cottage('Fisher cottage',-2.25,.5,1.55,1.62,1.14,.17,green=True)
+def make_church_bell(x,y,pivot_z):
+ bell=empty('ChurchBell');before=set(bpy.data.objects)
+ profile=[(.185,-.36),(.18,-.325),(.15,-.30),(.115,-.22),(.09,-.125),(.065,-.075)]
+ vertices=[];sides=16
+ for radius,zz in profile:vertices.extend([(math.cos(i*math.tau/sides)*radius,math.sin(i*math.tau/sides)*radius,zz) for i in range(sides)])
+ faces=[]
+ for band in range(len(profile)-1):
+  for i in range(sides):faces.append((band*sides+i,band*sides+(i+1)%sides,(band+1)*sides+(i+1)%sides,(band+1)*sides+i))
+ faces.append(tuple(range((len(profile)-1)*sides,len(profile)*sides)))
+ mesh('Flared colonial brass bell',vertices,faces,'brass')
+ cone('Bell mouth shadow',(0,0,-.343),.156,.156,.012,'brass_dark',16)
+ beam('Bell crown',(0,0,-.08),(0,0,-.005),.038,'brass',8)
+ beam('Bell clapper stem',(0,0,-.30),(0,0,-.40),.017,'iron',6)
+ ico('Bell clapper',(0,0,-.403),(.035,.035,.04),'brass_dark',2)
+ hit=empty('BellHitArea',(0,0,-.22));hit['radius']=.25
+ bpy.context.view_layer.update()
+ for ob in set(bpy.data.objects)-before:parent_preserving_world(ob,bell)
+ bell.location=(x,y,pivot_z)
+ return bell
+
+def church_window(x,y,z,w=.30,h=.88,turn=0):
+ before=set(bpy.data.objects)
+ light=anchor('WindowLight',(0,-.29,-.04));light['building']='church'
+ cube('Church sash frame',(0,0,0),(w+.09,.065,h+.09),'church_trim')
+ cube('Church warm windowpane',(0,-.042,0),(w,.028,h),'window_glow')
+ cube('Church sash mullion',(0,-.066,0),(.022,.021,h),'church_trim')
+ for zz in [-h/3,0,h/3]:cube('Church sash rail',(0,-.067,zz),(w,.022,.021),'church_trim')
+ cube('Church window sill',(0,-.085,-h/2-.055),(w+.16,.18,.065),'church_trim')
+ cube('Church window head',(0,-.025,h/2+.057),(w+.14,.105,.04),'church_trim')
+ transform(set(bpy.data.objects)-before,x,y,z,turn)
+
+def colonial_church(x,y,rot=-.06):
+ # Inspired by early colonial timber churches, especially the documented 1725-26
+ # clapboard nave/front tower of Trinity Newport. This is an original miniature.
+ start=set(bpy.data.objects);w=1.8;d=2.35;eave=1.78;apex=2.72;ty=-d/2-.09
+ footprint=anchor('CottageFootprint',(0,0,0))
+ for key,value in {'label':'Alderwick colonial church','wallWidth':w,'wallDepth':d,'roofWidth':w+.30,'roofDepth':d+.30,'wallHeight':eave,'roofTop':apex+.08,'towerForwardOffset':-ty,'towerDepth':.66,'spireTop':4.7}.items():footprint[key]=value
+ cube('Church stone foundation',(0,0,.085),(w+.16,d+.15,.17),'stone',.025)
+ cube('Church rectangular clapboard nave',(0,0,.975),(w,d,1.60),'church_clapboard')
+ for zz in [.26+i*.105 for i in range(15)]:
+  for sign in [-1,1]:cube('Church side clapboard reveal',(sign*(w/2+.007),0,zz),(.023,d,.016),'church_trim')
+  cube('Church front clapboard reveal',(0,-d/2-.007,zz),(w,.023,.016),'church_trim')
+ for sign in [-1,1]:
+  for yy in [-d/2+.028,d/2-.028]:cube('Church corner board',(sign*(w/2-.025),yy,.98),(.083,.08,1.62),'church_trim')
+  cube('Church cornice',(sign*(w/2+.022),0,eave),(.10,d+.12,.105),'church_trim')
+ mesh('Church gable ends',[(-w/2,-d/2,eave),(w/2,-d/2,eave),(0,-d/2,apex),(-w/2,d/2,eave),(w/2,d/2,eave),(0,d/2,apex)],[(0,1,2),(5,4,3)],'church_clapboard')
+ for sign in [-1,1]:
+  edge=w/2+.15;dep=d/2+.15
+  mesh('Church shingled roof',[(sign*edge,-dep,eave),(sign*edge,dep,eave),(0,dep,apex+.07),(0,-dep,apex+.07),(sign*edge,-dep,eave-.07),(sign*edge,dep,eave-.07),(0,dep,apex),(0,-dep,apex)],[(0,1,2,3),(4,7,6,5),(0,4,5,1),(3,2,6,7),(0,3,7,4),(1,5,6,2)],'roof_church')
+  for f in [.17,.34,.51,.68,.85]:
+   xx=sign*edge*(1-f);zz=eave*(1-f)+(apex+.07)*f
+   beam('Church shingle course',(xx,-dep,zz+.014),(xx,dep,zz+.014),.012,'roof_church_courses',4)
+  for yy in [-dep+.16,-.74,-.15,.44,1.03]:beam('Church roof joints',(sign*edge,yy,eave+.01),(0,yy,apex+.08),.008,'roof_church_courses',4)
+  beam('Church front gable trim',(sign*w/2,-d/2-.037,eave),(0,-d/2-.037,apex),.028,'church_trim',4)
+ beam('Church roof ridge',(0,-d/2-.17,apex+.075),(0,d/2+.17,apex+.075),.04,'roof_church_courses',6)
+ for xx in [-.63,.63]:church_window(xx,-d/2-.016,1.135,w=.28,h=.88)
+ for sign in [-1,1]:
+  for yy in [-.74,0,.74]:church_window(sign*(w/2+.016),yy,1.12,w=.31,h=.91,turn=sign*math.pi/2)
+ # Square tower projects from the center of the front gable. No tavern sign,
+ # flower boxes or chimney: its long nave, sash rhythm and steeple read as church.
+ cube('Church square front tower',(0,ty,1.38),(.74,.66,2.42),'church_clapboard')
+ for zz in [.27+i*.115 for i in range(20)]:
+  cube('Tower front clapboard',(0,ty-.337,zz),(.74,.024,.016),'church_trim')
+  for sign in [-1,1]:cube('Tower side clapboard',(sign*.377,ty,zz),(.024,.66,.016),'church_trim')
+ for sign in [-1,1]:
+  cube('Tower front corner pilaster',(sign*.333,ty-.348,1.39),(.082,.07,2.44),'church_trim')
+  cube('Tower rear corner pilaster',(sign*.333,ty+.293,1.39),(.075,.075,2.44),'church_trim')
+ # Centered paired timber entrance with a restrained classical pediment.
+ cube('Church entry surround',(0,ty-.36,.66),(.60,.09,1.01),'church_trim')
+ for sign in [-1,1]:
+  cube('Church double entry door',(sign*.121,ty-.415,.65),(.231,.045,.88),'wood')
+  for zz in [.40,.81]:cube('Church door raised panel',(sign*.121,ty-.444,zz),(.172,.018,.28),'wood_light',.006)
+  ico('Church brass door pull',(sign*.045,ty-.46,.67),(.016,.012,.023),'brass',1)
+  beam('Church doorway pediment',(sign*.33,ty-.44,1.19),(0,ty-.44,1.35),.025,'church_trim',4)
+ cube('Church entry lintel',(0,ty-.39,1.18),(.68,.15,.075),'church_trim')
+ cube('Church top entry step',(0,ty-.43,.135),(.76,.28,.16),'stone',.012)
+ cube('Church lower entry step',(0,ty-.57,.07),(.86,.24,.10),'stone',.012)
+ church_window(0,ty-.35,1.96,w=.26,h=.61)
+ cube('Tower lower cornice',(0,ty,2.64),(.92,.86,.15),'church_trim')
+ # Open belfry: the brass bell remains fully visible and independently ringable.
+ for xx in [-.29,.29]:
+  for yy in [ty-.275,ty+.275]:cube('Open belfry post',(xx,yy,3.005),(.078,.078,.67),'church_trim')
+ for yy in [ty-.276,ty+.276]:cube('Belfry horizontal lintel',(0,yy,3.32),(.65,.078,.105),'church_trim')
+ beam('Bell suspension axle',(-.33,ty,3.24),(.33,ty,3.24),.025,'iron',8)
+ make_church_bell(0,ty,3.24)
+ cube('Belfry upper cornice',(0,ty,3.41),(.87,.86,.15),'church_trim')
+ cone('Steeple hipped cap',(0,ty,3.57),.64,.29,.18,'roof_church',4).rotation_euler.z=math.pi/4
+ cone('Spire octagonal base',(0,ty,3.72),.285,.25,.16,'church_trim',8)
+ cone('Simple church spire',(0,ty,4.115),.25,0,.67,'roof_church',8)
+ ico('Steeple brass finial',(0,ty,4.475),(.035,.035,.035),'brass',1)
+ beam('Simple steeple cross',(0,ty,4.49),(0,ty,4.70),.015,'brass',6)
+ beam('Steeple cross arms',(-.064,ty,4.635),(.064,ty,4.635),.013,'brass',6)
+ objs=set(bpy.data.objects)-start
+ transform([ob for ob in objs if ob.parent not in objs],x,y,rot=rot)
+ for ob in objs:
+  if ob.type!='EMPTY':ob.name='Colonial church | '+ob.name
+
+colonial_church(.68,1.30)
+cottage('Fisher cottage',-2.25,.5,1.55,1.62,1.14,.17,green=True,interactive=True)
 cottage('Harbor workshop',3.22,.85,1.42,1.6,1.07,-.25)
-cottage('Clifftop cottage',-3.5,2.25,1.0,1.05,.88,.25)
 wx,wy=.9,-1.23
 well_start=set(bpy.data.objects)
 cone('Well stone curb',(wx,wy,.2),.36,.36,.4,'stone',12);cone('Dark well water',(wx,wy,.41),.28,.28,.006,'roof_green',12)
@@ -167,7 +300,9 @@ def tree(x,y,s=1,k='leaf_gold'):
 def pine(x,y,s=1):
  beam('Pine trunk',(x,y,0),(x,y,2.1*s),.1*s,'wood_light')
  for i,(z,r) in enumerate([(1.02,.74),(1.53,.6),(1.97,.44)]):cone('Evergreen canopy',(x,y,z*s),r*s,0,1.25*s,'leaf_pine' if i%2==0 else 'leaf_pine_light',7).rotation_euler.z=i*.5
-for x,y,s,k in [(-4.4,.75,1.15,'leaf_orange'),(-4.7,-.5,1.03,'leaf_gold'),(-4.6,1.8,.95,'leaf_gold'),(-2.5,2.9,1.07,'leaf_gold'),(-1,3.02,1.2,'leaf_orange'),(1.8,3,1.05,'leaf_green'),(3.2,2.43,1.2,'leaf_gold'),(4.28,1.43,1.08,'leaf_orange'),(4.7,-.18,1.02,'leaf_gold'),(3.67,-1.3,.78,'leaf_green'),(-4,-2,.74,'leaf_orange'),(-1.8,-2.9,.77,'leaf_gold')]:tree(x,y,s,k)
+# The final alder is on the southwest shore, keeping the garden clear from
+# the default northeast camera while retaining all twelve canopy anchors.
+for x,y,s,k in [(-4.4,.75,1.15,'leaf_orange'),(-4.7,-.5,1.03,'leaf_gold'),(-4.6,1.8,.95,'leaf_gold'),(-2.5,2.9,1.07,'leaf_gold'),(-1,3.02,1.2,'leaf_orange'),(1.8,3,1.05,'leaf_green'),(3.2,2.43,1.2,'leaf_gold'),(4.28,1.43,1.08,'leaf_orange'),(4.7,-.18,1.02,'leaf_gold'),(3.67,-1.3,.78,'leaf_green'),(-4,-2,.74,'leaf_orange'),(-3.3,-3.15,.77,'leaf_gold')]:tree(x,y,s,k)
 for x,y,s in [(-3.45,3.15,1.18),(-.07,3.53,.95),(2.5,3.05,1.17),(4.64,.9,.84),(-5,.22,.8)]:pine(x,y,s)
 for i in range(34):
  a=random.uniform(0,math.tau);x=math.cos(a)*random.uniform(4.6,5.48);y=math.sin(a)*random.uniform(3,3.98);ico('Shore granite',(x,y,-.05),(random.uniform(.12,.36),random.uniform(.13,.3),random.uniform(.1,.24)),'stone')
@@ -181,10 +316,7 @@ def fence(a,b,posts=5):
   p=a.lerp(b,i/(posts-1));cube('Fence upright',(p.x,p.y,.32),(.075,.075,.63),'wood_light',.012)
  for z in [.24,.47]:beam('Split rail',(a.x,a.y,z),(b.x,b.y,z),.037,'wood_light',4)
 fence((-3.9,-2.55),(-2.55,-2.7));fence((-3.9,-2.55),(-3.97,-1.45),4);cube('Garden earth',(-3.14,-1.8,.025),(1.22,.98,.04),'cliff')
-for row in range(3):
- for col in range(5):
-  x=-3.63+col*.24;y=-2.12+row*.28;ico('Cabbages',(x,y,.105),(.1,.1,.09),'leaf_green')
-  if row==0 and col%2==0:ico('Pumpkin',(x,y,.16),(.11,.1,.1),'pumpkin',2);beam('Pumpkin stalk',(x,y,.23),(x+.02,y,.29),.012,'wood')
+garden=empty('GardenPlot',(-3.14,-1.8,0));garden['width']=1.22;garden['depth']=.98
 def barrel(x,y,z=0,s=1):
  cone('Oak barrel',(x,y,z+.2*s),.18*s,.17*s,.4*s,'wood_light',10)
  for zz in [.09,.3]:cone('Barrel hoop',(x,y,z+zz*s),.186*s,.186*s,.037*s,'iron',10)
@@ -232,7 +364,7 @@ ship=empty('MerchantShip',(2.9,-4.62,-.88));ship.rotation_euler.z=-.35
 # preserves that pivot for bobbing and rocking in the browser.
 ship.location=(0,0,0);ship.rotation_euler.z=0;bpy.context.view_layer.update()
 for ob in ship_objects:parent_preserving_world(ob,ship)
-ship.location=(2.9,-4.62,-.88);ship.rotation_euler.z=-.35
+ship.location=(2.9,-4.62,-.88);ship.rotation_euler.z=-.35;ship.scale=(1.12,1.12,1.12)
 
 # Khloe: an articulated, flat-shaded German Shepherd. Nose points along -Y.
 # The feet stand on Z=0; joint empties are the runtime animation contract.
@@ -314,37 +446,6 @@ cube('Village bench',(-.88,-.05,.36),(.72,.25,.075),'wood_light',.012);cube('Ben
 for x in [-1.14,-.62]:cube('Bench leg',(x,-.05,.19),(.06,.16,.34),'wood')
 for j in range(5):beam('Firewood',(2.42+j%3*.11,.23,.09+(j//3)*.1),(2.42+j%3*.11,.61,.09+(j//3)*.1),.06,'wood_light',7)
 beam('Flagpole',(-.15,-3.6,0),(-.15,-3.6,1.42),.025,'wood_light');mesh('Harbor pennant',[(-.14,-3.6,1.4),(.43,-3.61,1.29),(-.14,-3.6,1.12)],[(0,1,2)],'berry')
-# Pip's post: an unmistakable freestanding letterbox beside the harbor path.
-# Its front flap hinges at the lower edge; +X in Three swings it outward/down.
-mailbox=empty('Mailbox');mailbox_start=set(bpy.data.objects)
-cube('Mailbox stone footing',(0,0,.055),(.34,.34,.11),'stone',.025)
-cube('Mailbox oak post',(0,0,.36),(.105,.105,.66),'wood_light',.014)
-cube('Mailbox support shelf',(0,0,.635),(.62,.57,.075),'wood_light',.012)
-# Four walls leave an actual dark interior revealed by the animated front flap.
-cube('Mailbox interior floor',(0,0,.69),(.5,.48,.05),'wood')
-cube('Mailbox left side',(-.25,0,.87),(.055,.48,.37),'roof_green')
-cube('Mailbox right side',(.25,0,.87),(.055,.48,.37),'roof_green')
-cube('Mailbox back',(0,.22,.87),(.5,.05,.37),'roof_green')
-mesh('Mailbox pitched roof',[(-.325,-.31,1.05),(.325,-.31,1.05),(0,-.31,1.225),(-.325,.31,1.05),(.325,.31,1.05),(0,.31,1.225)],[(0,3,5,2),(2,5,4,1),(0,2,1),(3,4,5)],'roof_green_light')
-beam('Mailbox roof ridge',(0,-.33,1.23),(0,.33,1.23),.019,'brass',6)
-# A little raised postal flag makes the object legible even on a small screen.
-beam('Mailbox flag pole',(.307,.015,.83),(.307,.015,1.135),.014,'brass_dark',6)
-cube('Mailbox raised flag',(.307,-.06,1.08),(.022,.155,.105),'berry',.009)
-mailbox_door=empty('MailboxDoor',(0,-.255,.65));door_start=set(bpy.data.objects)
-cube('Mailbox hinged front',(0,-.265,.85),(.455,.047,.37),'roof_green',.012)
-cube('Mailbox cream letter plaque',(0,-.293,.858),(.30,.014,.145),'canvas',.008)
-# Embossed envelope chevron rather than text that would disappear at this scale.
-for sign in [-1,1]:beam('Mailbox envelope seal line',(sign*.143,-.304,.92),(0,-.304,.844),.008,'brass_dark',4)
-ico('Mailbox brass latch',(0,-.314,1.002),(.023,.015,.022),'brass',1)
-for xx in [-.17,.17]:beam('Mailbox hinge pin',(xx-.027,-.262,.65),(xx+.027,-.262,.65),.019,'brass',8)
-bpy.context.view_layer.update()
-for ob in set(bpy.data.objects)-door_start:parent_preserving_world(ob,mailbox_door)
-letter_anchor=empty('PipLetterAnchor',(0,-.34,.87))
-mailbox_objects=set(bpy.data.objects)-mailbox_start;bpy.context.view_layer.update()
-for ob in mailbox_objects:
- if ob.parent not in mailbox_objects:parent_preserving_world(ob,mailbox)
-mailbox.location=(1.62,-3.18,0)
-
 # Source remains independently editable; the shipping file uses material batches.
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT,'assets-source','alderwick-island.blend'))
 for ob in list(bpy.context.scene.objects):

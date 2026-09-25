@@ -1,11 +1,11 @@
 # Alderwick harbor diorama
 
-Original geometry authored procedurally for Alderwick in Blender. No third-party models, textures, or asset licenses are required.
+Original low-poly geometry authored procedurally in Blender. No third-party models or textures are included.
 
-- `create_island.py`: deterministic construction and export script (seed 41).
-- `alderwick-island.blend`: editable construction scene with individual building parts, animation pivots, and light/smoke anchors.
-- `../public/models/alderwick-island.glb`: shipping model, consolidated by material within each independently animated group.
-- `../public/island-poster.webp`: Blender-rendered fallback for devices without WebGL.
+- `create_island.py`: deterministic construction/export script (seed 41).
+- `alderwick-island.blend`: editable scene with individual building parts, joints, and effect anchors.
+- `../public/models/alderwick-island.glb`: shipping model, merged by material within each independently animated group.
+- `../public/island-poster.webp`: rendered fallback for devices without WebGL.
 
 ## Rebuild
 
@@ -13,73 +13,81 @@ Original geometry authored procedurally for Alderwick in Blender. No third-party
 /Applications/Blender.app/Contents/MacOS/Blender --background --python assets-source/create_island.py
 ```
 
-The script saves the editable Blender scene, exports the GLB, then renders `/tmp/alderwick-island-preview.png`. Run from a system environment that permits Blender to initialize its graphics device. Blender 5.2.2 was used for the original export.
+The script saves the editable Blender scene, exports the GLB, then renders `/tmp/alderwick-island-preview.png`. Blender needs permission to initialize its graphics device. The source uses Blender 5.2.2 APIs.
+
+## Design references
+
+The central building is an original colonial church miniature with a sober rectangular clapboard nave, symmetric tall sash windows, centered double entry, shingled gable roof, square front tower, open belfry, brass bell, and simple tapered spire. It replaces the old tavern completely; the rear Clifftop cottage has been removed.
+
+The [National Park Service nomination for Trinity Church, Newport](https://preservation.ri.gov/sites/g/files/xkgbur406/files/pdfs_zips_downloads/national_pdfs/newport/newp_spring-street-141_trinity-church.pdf), hosted by Rhode Island's preservation agency, documents its 1725–26 rectangular timber/clapboard body, rhythmic tall windows, square front tower, belfry, and spire. [Old North Church's own architectural history](https://oldnorth.com/steeple-bell-chamber/) distinguishes its 1723 tower from the wooden spire added in 1740. These primary references inform the model's colonial proportions and restrained details. The miniature is a readable village interpretation, not an exact dated reproduction of either building.
 
 ## Coordinates and optimization
 
-Blender source uses Z up and -Y front. Standard glTF export converts this to Y up and +Z front. The island surface is at Y=0. Its approximate exported bounds are X -6.1 to 6.1, Y -1.3 to 4.4, Z -4.6 to 6.4. The ship and pier face the positive Z side. A water surface near Y=-0.975 surrounds the rocky shore.
+Blender is Z-up with front -Y. glTF export converts to Y-up with front +Z. The island surface is at Y=0; water sits near Y=-0.975. Geometry is flat shaded and texture-free, with no runtime decoder extensions. Static parts are merged by material. Animated parts are merged only within their own pivot. The exported model retains named empties and glTF extras, which Three.js exposes as `userData`.
 
-The model intentionally uses no textures or decoder extensions. Geometry is flat shaded. Static geometry is merged by material to reduce draw calls. Moving geometry is merged only within its own pivot, preserving the hierarchy below. Mesh names combine their parent pivot and material; static mesh names match their materials. `leaf_*` and `grass_*` identify seasonal vegetation; `window_glow` identifies emissive panes and lantern glass. Material base colors are authored in linear color space from sRGB swatches. Khloe uses dedicated `shepherd_*` colors, so season changes do not recolor her coat.
+`leaf_*` and `grass_*` materials identify seasonal vegetation. `roof_*` identifies roofs; `window_glow` identifies warm panes and lantern glass. Dedicated `shepherd_*`, `brass`, and `brass_dark` colors stay independent of seasonal vegetation. Material base colors are converted from sRGB swatches to linear space when authored.
 
-## Runtime animation contract
+## Runtime actors
 
-All positions below refer to the exported, Y-up glTF. Preserve the authored base transforms before applying runtime animation.
+Positions refer to the exported Y-up GLB. Preserve each node's authored rotation and scale before adding animation.
 
-| Node | Purpose |
+| Node | Contract |
 | --- | --- |
-| `Khloe` | Ground-level dog root, initially `(-0.74, 0, 1.65)`, uniform scale `0.86`. Forward is local +Z. Move/turn this node to roam. |
-| `KhloeBody` | Torso centered near shoulder height; use for breathing or a gentle bounce. Preserve its slimmed glTF scale `(0.82, 0.90, 1)`. |
-| `KhloeHead` | Neck-base pivot; head, neck, ears, muzzle, and pink collar move together. |
-| `KhloeTail` | Pivot at the rump; wag sideways about local Y. |
-| `KhloeLegFL`, `KhloeLegFR` | Front shoulder pivots. Swing about local X for gait. |
-| `KhloeLegBL`, `KhloeLegBR` | Rear hip pivots. Preserve the modeled bent hocks. |
-| `MerchantShip` | Waterline pivot at `(2.9, -0.88, 4.62)`; all hull, sail, and rigging geometry is parented here. Add bob/rock to its authored heading. |
-| `Mailbox` | Freestanding letterbox root at `(1.62, 0, 3.18)`, containing the post, box, roof, and flag. Front faces +Z. |
-| `MailboxDoor` | Child of `Mailbox`, lower hinge at local `(0, 0.65, 0.255)`. Add positive X rotation (up to about 1.25 radians) to open outward and down. |
-| `PipLetterAnchor` | Child of `Mailbox`. Letter emergence at world `(1.62, 0.87, 3.52)`; read its world position. |
-| `ChurchBell` | Belfry suspension pivot at `(0.66799, 3.6795, -1.47946)`, with authored Y heading `-0.06`. Add local X rotation to ring the bell. |
-| `BellHitArea` | Nonrendering child marker centered on the bell at world `(0.66799, 3.4595, -1.47946)`; `userData.radius` is `0.26`. |
-| `WishingWell` | Whole well root at `(0.9, 0, 1.23)`. Its static architecture remains individually selectable from the island. |
-| `WellBucket` | Child of `WishingWell`, handle suspension pivot at local `(0, 0.8, 0)`. Swing local X/Z gently or lift by at most 0.1 units. |
+| `Khloe` | Root at `(-0.74, 0, 1.65)`, uniform scale 0.86, forward +Z. |
+| `KhloeBody` | Torso pivot; preserve slimmed scale `(0.82, 0.90, 1)`. |
+| `KhloeHead` | Neck-base pivot; neck, muzzle, upright ears, and pink collar move together. |
+| `KhloeTail` | Rump pivot; wag about local Y. |
+| `KhloeLegFL`, `KhloeLegFR`, `KhloeLegBL`, `KhloeLegBR` | Shoulder/hip pivots; swing about local X. |
+| `MerchantShip` | Waterline root at `(2.9, -0.88, 4.62)`, authored Y heading -0.35, **uniform scale 1.12**. Hull, sails, and rigging stay parented here. |
+| `ChurchBell` | Suspension pivot `(0.604146, 3.24, -0.037276)`, authored Y heading -0.06. Swing local X to ring. |
+| `BellHitArea` | Child marker at world `(0.604146, 3.02, -0.037276)`, `userData.radius = 0.25`. |
+| `Mailbox` | Tiny box mounted beside Fisher cottage's door at `(-1.616322, 0.125, 0.295257)`, Y heading 0.17, uniform scale 0.30. The root is an authoring origin; visible box starts at Y≈0.325. |
+| `MailboxDoor` | Child hinge at local `(0, 0.65, 0.255)` before parent scale. Positive X rotation opens outward/down. |
+| `PipLetterAnchor` | Child of Mailbox at world `(-1.599065, 0.386, 0.395786)`. Read its world position. |
+| `VillageDoor` | Fisher cottage's actual leaf at world `(-2.340748, 0.17, 0.449034)`, authored Y heading +0.17. **Subtract** from local Y rotation to open outward, up to about 1.25 radians. |
+| `DoorVisitorStart` | Just inside Fisher doorway at `(-2.134956, 0.17, 0.170198)`, on the interior foundation. |
+| `DoorVisitorEnd` | Outside on the lane at `(-1.984384, 0.03, 1.047368)`. Visitor should descend smoothly from the interior/step height. |
+| `WishingWell` | Whole well root `(0.9, 0, 1.23)`. |
+| `WellBucket` | Child suspension pivot local `(0, 0.8, 0)`; sway X/Z or lift no more than 0.1. |
 
-Khloe is rebuilt as a tan-and-black German Shepherd with a dark saddle, sable neck ruff, long dark wedge muzzle, erect triangular ears, tan eyebrow markings, deep chest, sloped hind legs, a low feathered tail, and her pink collar. The unscaled dog is about 1.36 units from nose to tail and 0.82 units to ear tips. The exported root scale brings those dimensions to about 1.17 and 0.70 units. Her torso is 18% narrower and 10% slimmer vertically than the initial articulated model, retaining the same head, leg, and tail proportions and pivot names.
+Khloe remains a slender tan-and-black German Shepherd with a dark saddle, long wedge muzzle, erect ears, bent rear hocks, low feathered tail, and pink collar. Her complete nose-to-tail length is about 1.17 units and ear-tip height about 0.70 units after root scaling.
 
-## Effect anchors
+Fisher cottage has a **real 0.54-unit-wide entry opening**, from Y=0.17 to Y=1.08. Its walls, siding, and lower timber are split around the opening. The 0.50-by-0.91-unit door leaf is separately grouped; there is no solid wall behind it. A dark interior lies farther inside. This clearance accommodates the approximately 0.82-unit-tall Pip visitor. The mailbox is mounted below the right sash; that window's herb box is removed.
 
-The exporter preserves named empty nodes. Read their world positions rather than duplicating building measurements in application code.
+## Effect and planting anchors
 
-- `ChimneySmoke_0` through `ChimneySmoke_3`: directly over each chimney opening, including cottage translation and rotation. They map to the Alder and Anchor, Fisher cottage, Harbor workshop, and Clifftop cottage respectively.
-- `WindowLight_0` through `WindowLight_15`: four per cottage in the same building order, front left, front right, side front, and side rear. Each emitter sits 0.28 units outward from its window frame so real lighting can reach the facade and ground.
-- `LanternLight_0`, `LanternLight_1`: glass centers at `(-1.15, 1.02, 0.66)` and `(1.38, 1.02, 2.58)`.
-- `TreeCanopy_0` through `TreeCanopy_11`: canopy centers for the twelve deciduous trees in construction order. Each has `userData.radius` for modest interaction volumes. Tree geometry remains statically batched.
-- `CottageFootprint_0` through `CottageFootprint_3`: ground-level centers/orientations of the four cottages in the same order as chimney anchors. glTF extras expose `label`, `wallWidth`, `wallDepth`, `roofWidth`, `roofDepth`, `wallHeight`, and `roofTop`; Three.js reads these as `userData`.
+- `ChimneySmoke_0` and `ChimneySmoke_1`: Fisher cottage and Harbor workshop. **The church has no chimney; the removed rear cottage has no residual geometry or anchors.**
+- `WindowLight_0`–`WindowLight_8`: church windows. The first two flank its entry, the next six are its side sashes, and the ninth is on the tower. They have `userData.building = "church"`.
+- `WindowLight_9`–`WindowLight_12`: Fisher cottage's front-left, front-right, side-front, side-rear windows.
+- `WindowLight_13`–`WindowLight_16`: Harbor workshop in the same window order.
+- `LanternLight_0`, `LanternLight_1`: centers `(-1.15, 1.02, 0.66)` and `(1.38, 1.02, 2.58)`.
+- `TreeCanopy_0`–`TreeCanopy_11`: centers of the twelve deciduous trees, each with `userData.radius`; tree geometry stays batched. The last alder is relocated to ground `(-3.3, 0, 3.15)`, canopy center `(-3.2538, 1.3475, 3.15)`, on the southwest shore. This keeps the garden visible from the default camera `(13, 13, 19)` without moving the plot or fences.
+- `GardenPlot`: center `(-3.14, 0, 1.8)`, with `userData.width = 1.22`, `userData.depth = 0.98`. Soil and fence remain authored. **All old cabbage, pumpkin, and stalk meshes are removed** so the runtime owns seasonal planting and props.
 
-Chimney mouth positions after glTF coordinate conversion:
+The garden lane now stops at Blender `(-3.08, -1.18)`, width 0.26, outside the soil's north edge Y=-1.31. It no longer runs through the planting area.
 
-| Node | X | Y | Z |
+| Chimney anchor | X | Y | Z |
 | --- | ---: | ---: | ---: |
-| `ChimneySmoke_0` | 0.16792 | 3.33450 | -1.70185 |
-| `ChimneySmoke_1` | -2.69769 | 2.65950 | -0.81764 |
-| `ChimneySmoke_2` | 2.97104 | 2.51280 | -1.30989 |
-| `ChimneySmoke_3` | -3.80457 | 2.07500 | -2.43231 |
+| `ChimneySmoke_0` | -2.69769 | 2.65950 | -0.81764 |
+| `ChimneySmoke_1` | 2.97104 | 2.51280 | -1.30989 |
 
-The source also contains four colonial cottages, a cupola and bell, window boxes, roof courses, village well, fence and vegetable garden, autumn alders and pines, an oak dock, supply crates and barrels. Preview lighting, camera, and water plane are added after export and never appear in the runtime GLB.
+## Building and interaction bounds
 
-## Building clearances and interaction bounds
+There are exactly three `CottageFootprint_*` metadata anchors: index 0 is the church, 1 Fisher cottage, 2 Harbor workshop. All provide a label, wall/roof widths and depths, wall height, and roof height. The church additionally exposes `towerForwardOffset`, `towerDepth`, and `spireTop`. Metadata dimensions describe unrotated local shapes; use each anchor's world transform.
 
-The rear cottage previously overlapped Fisher cottage's roof by approximately 0.154 units. Fisher now sits at `(-2.25, 0, -0.5)`, and the smaller Clifftop cottage sits at `(-3.5, 0, -2.25)` with a 1.0 by 1.05 wall footprint. Their rotated roof rectangles now have a separating gap of 0.258 units. The workshop moved right to `(3.22, 0, -0.85)`; its roof separates from the Alder and Anchor by 0.363 units. Every pair of cottage roof rectangles is disjoint. These gaps use the oriented roof rectangles, so their axis-aligned bounding boxes can still overlap without actual roof intersections.
-
-| Cottage | Roof X min/max | Roof Z min/max | Roof dimensions before rotation |
+| Building | Ground center | Nave/cottage roof X min/max | Roof Z min/max |
 | --- | --- | --- | --- |
-| Alder and Anchor | -0.60452 / 1.90452 | -2.44391 / 0.08391 | 2.37 × 2.39 |
-| Fisher cottage | -3.33732 / -1.16268 | -1.62406 / 0.62406 | 1.87 × 1.96 |
-| Harbor workshop | 2.13706 / 4.30294 | -2.00509 / 0.30509 | 1.74 × 1.94 |
-| Clifftop cottage | -4.31143 / -2.68857 | -3.08668 / -1.41332 | 1.32 × 1.39 |
+| Colonial church | `(0.68, 0, -1.30)` | -0.447563 / 1.807563 | -2.685578 / 0.085578 |
+| Fisher cottage | `(-2.25, 0, -0.50)` | -3.33732 / -1.16268 | -1.62406 / 0.62406 |
+| Harbor workshop | `(3.22, 0, -0.85)` | 2.13706 / 4.30294 | -2.00509 / 0.30509 |
 
-Useful approximate interaction bounds in world coordinates:
+The church's tower and steps extend forward of its nave roof; its spire reaches Y=4.70. There is no rear cottage to intersect or visually merge with Fisher cottage.
 
-- Mailbox: X 1.295–1.945, Y 0–1.25, Z 2.85–3.51. The closed door spans X 1.3925–1.8475, Y 0.665–1.035, Z 3.4215–3.4685.
-- Church bell: X about 0.47–0.87, Y 3.24–3.68, Z about -1.68–-1.28. Its center marker and radius are preferable to a large belfry click box.
-- Whole well: X 0.32–1.48, Y 0–1.47, Z 0.80–1.66. Bucket: X 0.747–1.053, Y 0.445–0.815, Z 1.077–1.383.
+Approximate actor bounds for small interaction volumes:
 
-The mailbox sits outside Khloe's central roaming loop and beside the approach to the dock. The well bucket is actual grouped geometry, including stave body, iron hoops, opening, and handle; no runtime mesh replacement is needed. Dedicated `brass` and `brass_dark` materials prevent the bell and mailbox details from changing color with tree seasons.
+- Mounted mailbox: X -1.73–-1.50, Y 0.325–0.50, Z 0.18–0.41. Prefer raycasting its actual visible meshes.
+- Bell: X about 0.40–0.81, Y 2.80–3.24, Z -0.24–0.17. Use `BellHitArea` for any additional interaction volume.
+- Whole well: X 0.32–1.48, Y 0–1.47, Z 0.80–1.66.
+- Bucket: X 0.747–1.053, Y 0.445–0.815, Z 1.077–1.383.
+
+Preview lights, camera, and water plane are created only after export and are excluded from the runtime GLB.

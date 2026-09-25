@@ -1,6 +1,6 @@
 # Website administration
 
-Edit [`public/site-config.json`](../public/site-config.json) in GitHub, then commit the change. GitHub Pages deploys it automatically. The website reads this JSON on each visit without relying on a cached copy. No application code changes are required.
+Edit [`public/site-config.json`](../public/site-config.json) in GitHub, then commit the change. GitHub Pages deploys it automatically. The website reads this JSON on each visit without relying on a cached copy. No application code changes are required. The desktop download and both mobile stores are currently disabled; preserve those values until you are ready to launch.
 
 ## Desktop download
 
@@ -11,7 +11,7 @@ Edit [`public/site-config.json`](../public/site-config.json) in GitHub, then com
 }
 ```
 
-- `enabled: true` enables desktop download buttons only when `public/downloads/release.json` is also valid and has `available: true`.
+- `enabled: true` enables the hero and closing-section desktop download buttons only when `public/downloads/release.json` is also valid and has `available: true`.
 - `enabled: false` changes the desktop buttons to **Coming Soon!** and removes all download links from the interface, including an open dialog.
 - `comingSoonText` is the message in the availability dialog. Use a nonempty string of at most 250 characters.
 - Keep JSON booleans unquoted: `false`, not `"false"`.
@@ -48,7 +48,13 @@ Use the actual published app URL. The iOS link must be on `https://apps.apple.co
 "world": {
   "theme": "system",
   "season": "current",
-  "hemisphere": "north"
+  "hemisphere": "north",
+  "effectsEnabled": true,
+  "shakeEnabled": true,
+  "snowAmount": 1,
+  "soundEnabled": true,
+  "animationEnabled": true,
+  "discoveriesEnabled": true
 }
 ```
 
@@ -56,11 +62,40 @@ Use the actual published app URL. The iOS link must be on `https://apps.apple.co
 - `season`: `current` follows the visitor's local calendar; `spring`, `summer`, `autumn`, or `winter` selects a fixed season.
 - `hemisphere`: `north` is the default for Alderwick's New England setting. Northern meteorological seasons start March 1, June 1, September 1, and December 1. `south` reverses the seasons. No location services or permissions are requested.
 
-Visitors can preview another mood in the discreet desktop **World mood** menu. Their preview lasts for that visit. **Use my current day & season** returns to the configured automatic behavior. Story chapter previews can change the season too. Reduced-motion preferences remain respected, and the world has an animation pause control.
+Visitors can preview another mood in the discreet desktop **World mood** menu. Their preview lasts for that visit. **Use my current day & season** returns to the configured automatic behavior. Story chapter previews can change the season too. Reduced-motion preferences remain respected. The following administrative controls apply throughout the visit:
+
+| Field | Default | Behavior |
+| --- | --- | --- |
+| `effectsEnabled` | `true` | Enables decorative world effects and page-wide winter snow. Set `false` for a quieter presentation. |
+| `shakeEnabled` | `true` | Allows the miniature's shake interaction. It does not override reduced-motion preferences. |
+| `snowAmount` | `1` | Multiplies winter snow density, including the page overlay. Any finite number from `0.5` to `2` is valid. |
+| `soundEnabled` | `true` | Allows sounds started by a visitor interaction, such as the church bell. Set `false` for a silent site. |
+| `animationEnabled` | `true` | Allows world animation. Set `false` to keep a still world; visitors can still inspect the scene. The pause button cannot override this setting. |
+| `discoveriesEnabled` | `true` | Enables object discoveries and their stories, keyboard alternatives, and the discovery section. Set `false` to disable them together. |
+
+These settings are independent of the download and store switches. Changing visual or sound settings never enables a download.
+
+## Interface visibility
+
+```json
+"interface": {
+  "showWorldSettings": true,
+  "showDiscoveryProgress": true
+}
+```
+
+- `showWorldSettings`: shows the optional desktop **World mood** menu. Set `false` to hide it. Automatic appearance continues to work.
+- `showDiscoveryProgress`: shows the found-count and discovery badges in the discovery section. Set `false` to hide that progress display while keeping discoveries available.
+
+The header contains only the Alderwick home link; there is no header download button. The availability controls remain in the hero and closing section.
 
 ## Validation and safe defaults
 
-Keep `"version": 1` and all documented sections in the file. Invalid JSON, missing sections, invalid booleans, unrecognized world values, unavailable configuration, or unsafe enabled store URLs cause the configuration to fail closed: desktop downloads and store links remain unavailable. The world can still be explored using system appearance and the northern calendar season.
+Keep `"version": 1` and the existing `download`, `stores`, and `world` sections. The six new world controls and the `interface` section are optional for compatibility with earlier configuration files: omitted fields receive the defaults listed above. Explicit `false` values are preserved.
+
+Invalid JSON, missing required sections, invalid booleans, out-of-range snow density, unrecognized appearance values, unavailable configuration, or unsafe enabled store URLs cause the whole configuration to fail closed: desktop downloads and store links remain unavailable. This also applies when a newly added option is invalid; an otherwise enabled download cannot bypass validation. The world can still be explored using its default system appearance, northern calendar season, and default visual controls.
+
+Use unquoted `true` or `false` for switches and an unquoted number for `snowAmount`. For example, `"snowAmount": 1.5` is valid; `"snowAmount": "1.5"` is not.
 
 Run focused configuration checks with Node.js 24:
 

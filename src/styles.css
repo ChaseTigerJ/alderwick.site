@@ -77,6 +77,19 @@
 .page-snow i{position:absolute;left:var(--snow-left);top:-12px;display:block;width:var(--snow-size);height:var(--snow-size);border-radius:50%;background:var(--snow-color);box-shadow:0 0 2px #82908630;opacity:var(--snow-opacity);animation:page-snowfall var(--snow-time) var(--snow-delay) linear infinite;will-change:transform}
 .page-snow.is-paused i{animation-play-state:paused}
 @keyframes page-snowfall{from{transform:translate3d(0,-2vh,0)}to{transform:translate3d(var(--snow-drift),105vh,0)}}
-@media(max-width:480px){.discovery-progress strong{flex-basis:100%;margin:5px 0 0}.page-snow i:nth-child(n+19){display:none}}
+@media(max-width:480px){.discovery-progress strong{flex-basis:100%;margin:5px 0 0}}
 @media(prefers-reduced-motion:reduce){.page-snow{display:none}}
 .site-header>.nav-download{font-size:14px;font-weight:500}
+
+/* Keep the miniature continuous behind the headline, without a copy panel. */
+.hero-copy{background:transparent;box-shadow:none;pointer-events:none}
+.hero-copy::before,.hero-copy::after{content:none}
+.hero-copy>*{pointer-events:none}
+.hero-copy :is(h1,p){width:fit-content;pointer-events:auto}
+.hero-copy :is(a,button){pointer-events:auto}
+.hero-copy :is(.adventure-wrap,.store-buttons){width:fit-content;pointer-events:auto}
+.island-canvas,.island-canvas canvas{user-select:none;-webkit-user-select:none}
+@media(min-width:801px){.world-stage{left:0;right:0}}
+
+/* A captured orbit must never turn into page-text selection when crossing the copy. */
+html.island-dragging,html.island-dragging *{user-select:none!important;-webkit-user-select:none!important;cursor:grabbing!important}

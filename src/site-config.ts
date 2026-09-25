@@ -2,11 +2,30 @@ export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 export type Hemisphere = 'north' | 'south';
 export type ThemeDefault = 'system' | 'local-time' | 'day' | 'night';
 export type Store = { enabled: boolean; url: string | null };
+export type WorldSettings = {
+  theme: ThemeDefault;
+  season: 'current' | Season;
+  hemisphere: Hemisphere;
+  effectsEnabled: boolean;
+  shakeEnabled: boolean;
+  snowAmount: number;
+  soundEnabled: boolean;
+  animationEnabled: boolean;
+  discoveriesEnabled: boolean;
+};
+export type InterfaceSettings = { showWorldSettings: boolean; showDiscoveryProgress: boolean };
+export const DEFAULT_WORLD_SETTINGS: WorldSettings = {
+  theme: 'system', season: 'current', hemisphere: 'north',
+  effectsEnabled: true, shakeEnabled: true, snowAmount: 1,
+  soundEnabled: true, animationEnabled: true, discoveriesEnabled: true,
+};
+export const DEFAULT_INTERFACE_SETTINGS: InterfaceSettings = { showWorldSettings: true, showDiscoveryProgress: true };
 export type SiteConfig = {
   version: 1;
   download: { enabled: boolean; comingSoonText: string };
   stores: { ios: Store; android: Store; comingSoonText: string };
-  world: { theme: ThemeDefault; season: 'current' | Season; hemisphere: Hemisphere };
+  world: WorldSettings;
+  interface: InterfaceSettings;
 };
 export type Release = { title: string; version: string; url: string; size: string; sha256?: string; requirements: string; available: boolean };
 
@@ -45,7 +64,26 @@ export function parseSiteConfig(value: unknown): SiteConfig | null {
   if (!ios || !android) return null;
   const theme = value.world.theme, season = value.world.season, hemisphere = value.world.hemisphere;
   if (typeof theme !== 'string' || typeof season !== 'string' || typeof hemisphere !== 'string' || !['system', 'local-time', 'day', 'night'].includes(String(theme)) || !['current', 'spring', 'summer', 'autumn', 'winter'].includes(String(season)) || !['north', 'south'].includes(String(hemisphere))) return null;
-  return { version: 1, download: { enabled: value.download.enabled, comingSoonText: value.download.comingSoonText.trim() }, stores: { ios, android, comingSoonText: value.stores.comingSoonText.trim() }, world: { theme: theme as ThemeDefault, season: season as 'current' | Season, hemisphere: hemisphere as Hemisphere } };
+  const world: WorldSettings = { ...DEFAULT_WORLD_SETTINGS, theme: theme as ThemeDefault, season: season as 'current' | Season, hemisphere: hemisphere as Hemisphere };
+  for (const key of ['effectsEnabled', 'shakeEnabled', 'soundEnabled', 'animationEnabled', 'discoveriesEnabled'] as const) {
+    if (value.world[key] === undefined) continue;
+    if (typeof value.world[key] !== 'boolean') return null;
+    world[key] = value.world[key];
+  }
+  if (value.world.snowAmount !== undefined) {
+    if (typeof value.world.snowAmount !== 'number' || !Number.isFinite(value.world.snowAmount) || value.world.snowAmount < .5 || value.world.snowAmount > 2) return null;
+    world.snowAmount = value.world.snowAmount;
+  }
+  const interfaceSettings = { ...DEFAULT_INTERFACE_SETTINGS };
+  if (value.interface !== undefined) {
+    if (!object(value.interface)) return null;
+    for (const key of ['showWorldSettings', 'showDiscoveryProgress'] as const) {
+      if (value.interface[key] === undefined) continue;
+      if (typeof value.interface[key] !== 'boolean') return null;
+      interfaceSettings[key] = value.interface[key];
+    }
+  }
+  return { version: 1, download: { enabled: value.download.enabled, comingSoonText: value.download.comingSoonText.trim() }, stores: { ios, android, comingSoonText: value.stores.comingSoonText.trim() }, world, interface: interfaceSettings };
 }
 
 export function parseRelease(value: unknown): Release | null {

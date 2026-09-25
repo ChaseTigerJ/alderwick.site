@@ -48,3 +48,15 @@ The September 24, 2026 seasonal update replaces floating discovery markers with 
 - TypeScript and the final production build pass. Browser console checks returned no warnings or errors. Vite reports its existing dependency directive notices and a 658 kB lazy-loaded Three.js scene chunk warning.
 
 Physical mobile pinch testing and audible bell playback on actual devices remain unverified. The portable game archive is unchanged.
+
+## Colonial village, snowglobe physics, and administration
+
+- All 29 focused tests pass, including the real exported door/mailbox/bell hierarchy, Pip's complete nine-second visit and frozen greeting, actual transformed path triangle exclusion, seasonal garden visibility, snow inertia and dome containment under repeated strong impulses, settling, and the added administrative switches.
+- The final Blender export contains 85 meshes, 17,924 triangles, and 1,531,516 bytes. It removes the rear cottage, replaces the central hall with a colonial clapboard church, mounts a small mailbox beside the working cottage doorway, and scales the ship up 12%. One foreground alder was moved to expose the seasonal garden from the default camera.
+- Browser checks confirmed Pip exits the clicked cottage door, the door opens, and the model animates. Spring flowerbeds and clear paths, the summer campfire and passing gull, autumn pumpkins, and the winter snowman/globe were inspected. Back-and-forth mouse orbits stir the dense snow; deterministic tests verify inertia and settling after release.
+- Zoomed scenery now extends continuously behind the hero text. A mouse drag across the text produced no text selection or accidental discovery, and the drag state was cleared on release.
+- Layouts at 320, 768, 1024, and 1440 pixels wide showed no horizontal document overflow. The header contains zero buttons; phone/tablet layouts have no ZIP links.
+- A temporary local configuration disabled animation, discoveries, effects, sound, and optional controls. The browser removed the snow overlay, discovery list/section, mood controls, and header buttons while keeping the scene available. The test configuration was restored before building; desktop, iOS, and Android availability remain `false`.
+- TypeScript and the final Vite build passed. Browser console checks returned no warnings/errors. The lazy-loaded Three.js scene is approximately 676 kB before gzip; Vite's size warning remains informational.
+
+Physical device touch/pinch QA remains outside these desktop browser checks. The unchanged game archive and DNS configuration were not modified by this visual update.

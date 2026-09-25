@@ -5,4 +5,5 @@ export const discoveries = [
   { title: 'A bell for the village', text: 'Across the harbor, a familiar bell calls everyone home. Even a little village deserves a proper welcome.', item: 'One happy homecoming', icon: '04', actionLabel: 'Ring the church bell' },
   { title: 'A wish in the well', text: 'A quiet moment, a little ripple, and a wish for whatever comes next. This one is yours to keep.', item: 'One hopeful wish', icon: '05', actionLabel: 'Make a wish at the well' },
   { title: 'A whisper in the trees', text: 'The branches have a little mischief in them. Give them a nudge and let the breeze take care of the rest.', item: 'One moment in the wild', icon: '06', actionLabel: 'Rustle the trees' },
+  { title: 'A neighbor at the door', text: 'Copper coat, tall hat, and a satchel full of stories. Pip the Postman always has a moment to say hello before the next delivery.', item: 'One familiar face', icon: '07', actionLabel: 'Knock on Pip’s door' },
 ] as const;

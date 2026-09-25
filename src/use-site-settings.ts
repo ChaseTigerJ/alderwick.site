@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { currentSeason, defaultNight, isMobileVisitor, parseRelease, parseSiteConfig, type Release, type Season, type SiteConfig } from './site-config';
+import { DEFAULT_INTERFACE_SETTINGS, DEFAULT_WORLD_SETTINGS, currentSeason, defaultNight, isMobileVisitor, parseRelease, parseSiteConfig, type Release, type Season, type SiteConfig } from './site-config';
 function systemAppearance(): 'dark' | 'light' | null {
   if (typeof window.matchMedia !== 'function') return null;
   if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
@@ -45,6 +45,8 @@ export function useSiteSettings() {
   }, [config, manualNight, manualSeason]);
   return {
     config, release, mobile, night, season,
+    worldSettings: config?.world ?? DEFAULT_WORLD_SETTINGS,
+    interfaceSettings: config?.interface ?? DEFAULT_INTERFACE_SETTINGS,
     downloadAvailable: !mobile && config?.download.enabled === true && release?.available === true,
     previewNight: (value: boolean) => { setManualNight(true); setNight(value); },
     previewSeason: (value: Season) => { setManualSeason(true); setSeason(value); },

@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { createVillageVisitor } from './village-visitor.ts';
 
 export const PAWPRINT_LIFETIME = 5;
 
 /** Small, bounded performances. Everything shares the scene clock and stops offscreen. */
 export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
+  const visitor = createVillageVisitor(scene, model);
   const dog = model.getObjectByName('Khloe');
   const body = model.getObjectByName('KhloeBody');
   const head = model.getObjectByName('KhloeHead');
@@ -79,6 +81,7 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
   const wishes = Array.from({ length: 8 }, () => { const wish = new THREE.Mesh(new THREE.IcosahedronGeometry(.035, 0), wishMaterial); scene.add(wish); return wish; });
 
   function isActive(id: number) {
+    if (id === 6) return visitor.active(time);
     if (id === 0) return time - letterAction < 7;
     if (id === 1) return time - dogAction < 4.7;
     if (id === 2) return time - boatAction < 5;
@@ -88,6 +91,7 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
   }
 
   function trigger(id: number, staticMotion: boolean) {
+    if (id === 6) return visitor.trigger(time, staticMotion);
     // Rapid repeat clicks never restart or stack a performance.
     if (!staticMotion && isActive(id)) return false;
     if (id === 0) letterAction = time - (staticMotion ? 2.8 : 0);
@@ -100,6 +104,7 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
 
   function update(delta: number, motion: boolean, winter: boolean, camera: THREE.Camera) {
     if (motion) time += delta;
+    visitor.update(time, motion, camera);
     const dogElapsed = time - dogAction, playing = dogElapsed < 4.7;
     const routine = time % 18;
     const walking = !playing && (routine < 10 || routine > 15.5);

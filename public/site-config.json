@@ -5,13 +5,29 @@
     "comingSoonText": "Your next adventure is on its way. Come back soon!"
   },
   "stores": {
-    "ios": { "enabled": false, "url": "" },
-    "android": { "enabled": false, "url": "" },
+    "ios": {
+      "enabled": false,
+      "url": ""
+    },
+    "android": {
+      "enabled": false,
+      "url": ""
+    },
     "comingSoonText": "A little world, soon in your pocket. Alderwick for phones and tablets is coming soon."
   },
   "world": {
     "theme": "system",
     "season": "current",
-    "hemisphere": "north"
+    "hemisphere": "north",
+    "effectsEnabled": true,
+    "shakeEnabled": true,
+    "snowAmount": 1,
+    "soundEnabled": true,
+    "animationEnabled": true,
+    "discoveriesEnabled": true
+  },
+  "interface": {
+    "showWorldSettings": true,
+    "showDiscoveryProgress": true
   }
 }

@@ -14,11 +14,15 @@ async function fixture() {
 }
 test('export preserves articulated dog, ship pivot and exact effect anchors', async () => {
   const { model } = await fixture();
-  for (const name of ['Khloe', 'KhloeBody', 'KhloeHead', 'KhloeTail', 'KhloeLegFL', 'KhloeLegFR', 'KhloeLegBL', 'KhloeLegBR', 'MerchantShip', 'PipLetterAnchor', 'Mailbox', 'MailboxDoor', 'ChurchBell', 'WishingWell', 'WellBucket']) assert.ok(model.getObjectByName(name), name);
-  for (let i = 0; i < 4; i++) assert.ok(model.getObjectByName(`ChimneySmoke_${i}`));
-  for (let i = 0; i < 16; i++) assert.ok(model.getObjectByName(`WindowLight_${i}`));
+  for (const name of ['Khloe', 'KhloeBody', 'KhloeHead', 'KhloeTail', 'KhloeLegFL', 'KhloeLegFR', 'KhloeLegBL', 'KhloeLegBR', 'MerchantShip', 'PipLetterAnchor', 'Mailbox', 'MailboxDoor', 'ChurchBell', 'WishingWell', 'WellBucket', 'VillageDoor', 'DoorVisitorStart', 'DoorVisitorEnd', 'GardenPlot']) assert.ok(model.getObjectByName(name), name);
+  for (let i = 0; i < 2; i++) assert.ok(model.getObjectByName(`ChimneySmoke_${i}`));
+  for (let i = 0; i < 17; i++) assert.ok(model.getObjectByName(`WindowLight_${i}`));
   for (let i = 0; i < 2; i++) assert.ok(model.getObjectByName(`LanternLight_${i}`));
   assert.equal(model.getObjectByName('Khloe')!.children.filter(node => node.name.startsWith('Khloe')).length, 7);
+  assert.equal(model.getObjectByName('ChimneySmoke_2'), undefined, 'Only the two remaining cottages have chimneys');
+  assert.equal(model.getObjectByName('CottageFootprint_3'), undefined, 'The cramped rear cottage is removed');
+  assert.ok(Math.abs(model.getObjectByName('MerchantShip')!.scale.x - 1.12) < .001);
+  assert.ok(model.getObjectByName('Mailbox')!.scale.x <= .31, 'Mailbox is mounted at cottage scale');
 });
 test('dog roams continuously on land, pauses completely, leaves snowprints only in winter', async () => {
   const { scene, camera, life } = await fixture();

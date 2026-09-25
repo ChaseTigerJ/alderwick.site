@@ -44,3 +44,40 @@ test('phone/tablet and iPad desktop user agent do not receive desktop ZIP contro
   assert.equal(isMobileVisitor(1366, false, 'Safari', 5, 'MacIntel'), true);
   assert.equal(isMobileVisitor(1366, false, 'Android'), true);
 });
+test('older configurations get compatible world and interface defaults without changing availability', () => {
+  const legacy = parseSiteConfig({ ...config, download: { ...config.download, enabled: false } });
+  assert.ok(legacy);
+  assert.equal(legacy.download.enabled, false);
+  assert.equal(legacy.stores.ios.enabled, false);
+  assert.equal(legacy.world.effectsEnabled, true);
+  assert.equal(legacy.world.shakeEnabled, true);
+  assert.equal(legacy.world.soundEnabled, true);
+  assert.equal(legacy.world.animationEnabled, true);
+  assert.equal(legacy.world.discoveriesEnabled, true);
+  assert.equal(legacy.world.snowAmount, 1);
+  assert.deepEqual(legacy.interface, { showWorldSettings: true, showDiscoveryProgress: true });
+});
+test('explicit administrative effects and interface switches remain false', () => {
+  const customized = parseSiteConfig({ ...config, world: { ...config.world, effectsEnabled: false, shakeEnabled: false, soundEnabled: false, animationEnabled: false, discoveriesEnabled: false, snowAmount: .5 }, interface: { showWorldSettings: false, showDiscoveryProgress: false } });
+  assert.ok(customized);
+  assert.equal(customized.world.effectsEnabled, false);
+  assert.equal(customized.world.shakeEnabled, false);
+  assert.equal(customized.world.soundEnabled, false);
+  assert.equal(customized.world.animationEnabled, false);
+  assert.equal(customized.world.discoveriesEnabled, false);
+  assert.equal(customized.world.snowAmount, .5);
+  assert.deepEqual(customized.interface, { showWorldSettings: false, showDiscoveryProgress: false });
+});
+test('invalid new options fail closed even when download and store links would otherwise be enabled', () => {
+  const available = { ...config, stores: { ...config.stores, ios: { enabled: true, url: 'https://apps.apple.com/us/app/alderwick/id123' } } };
+  for (const key of ['effectsEnabled', 'shakeEnabled', 'soundEnabled', 'animationEnabled', 'discoveriesEnabled']) {
+    for (const invalid of ['false', 0, null]) assert.equal(parseSiteConfig({ ...available, world: { ...config.world, [key]: invalid } }), null, `${key}: ${invalid}`);
+  }
+  for (const invalid of ['1', 0, .49, 2.01, null, NaN, Infinity]) assert.equal(parseSiteConfig({ ...available, world: { ...config.world, snowAmount: invalid } }), null, `snowAmount: ${invalid}`);
+  for (const key of ['showWorldSettings', 'showDiscoveryProgress']) assert.equal(parseSiteConfig({ ...available, interface: { [key]: 'false' } }), null, key);
+  assert.equal(parseSiteConfig({ ...available, interface: null }), null);
+  assert.equal(parseSiteConfig({ ...available, interface: [] }), null);
+});
+test('snow multiplier accepts both bounds and fractional values', () => {
+  for (const snowAmount of [.5, 1, 1.25, 2]) assert.equal(parseSiteConfig({ ...config, world: { ...config.world, snowAmount } })?.world.snowAmount, snowAmount);
+});

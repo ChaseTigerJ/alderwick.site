@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 
-const actors = ['Mailbox', 'Khloe', 'MerchantShip', 'ChurchBell', 'WishingWell'];
+const actors = ['Mailbox', 'Khloe', 'MerchantShip', 'ChurchBell', 'WishingWell', null, 'VillageDoor'];
 
 /** Pick the miniature's objects, never a screen-space marker or hidden DOM target. */
 export function createIslandPicker(model: THREE.Object3D) {
-  const roots = actors.map(name => model.getObjectByName(name));
+  const roots = actors.map(name => name ? model.getObjectByName(name) : undefined);
   const box = new THREE.Box3(), point = new THREE.Vector3();
   const treeCenters: THREE.Vector3[] = [];
   model.traverse(object => {
@@ -28,12 +28,12 @@ export function createIslandPicker(model: THREE.Object3D) {
       if (materials.some(material => /^leaf_(gold|orange|light|green|pine)/.test(material.name)) && treeCenters.some(center => center.distanceTo(surface.point) < 1.7)) return 5;
     }
     // Small objects get forgiving three-dimensional bounds, but cannot be clicked
-    // through a nearer house. These volumes track the roaming dog and rocking ship.
+    // through a nearer house. These volumes track the roaming dog and door leaf.
     let nearest = Infinity, chosen: number | null = null;
     roots.forEach((root, id) => {
       // The ship's bounding box includes large empty spaces between its masts;
       // only its actual hull, sails and rigging count as a ship hit.
-      if (!root || id === 2) return;
+      if (!root || !root.visible || id === 2) return;
       box.setFromObject(root).expandByScalar(id === 3 ? .18 : .10);
       if (!ray.ray.intersectBox(box, point)) return;
       const distance = point.distanceTo(ray.ray.origin);
