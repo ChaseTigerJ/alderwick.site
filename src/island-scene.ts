@@ -9,6 +9,7 @@ import { attachIslandDrag } from './island-drag';
 import { createIslandIdleMotion } from './island-idle';
 import { createIslandFlames } from './island-flames';
 import { createIslandFlags } from './island-flags';
+import { createIslandBreeze } from './island-breeze';
 import { createIslandEasterEggs } from './island-easter-eggs';
 import type { WorldSettings } from './site-config';
 import type { Season } from './Island';
@@ -76,6 +77,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   const atmosphere = createIslandAtmosphere(scene, model.scene);
   const flames = createIslandFlames(model.scene);
   const flags = createIslandFlags(model.scene);
+  const breeze = createIslandBreeze(model.scene);
   const easterEggs = createIslandEasterEggs(scene, model.scene);
   shakeWorld = (dx, dy) => {
     const s = state();
@@ -179,6 +181,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     for (const { material, name } of materials) if (/window|glow|lantern/.test(name)) { material.emissive.set(0xffb948); material.emissiveIntensity = .06 + nightMix * 1.1 * s.worldSettings.flameIntensity * flutter; }
     flames.update(t, nightMix, s.worldSettings.flameIntensity, !s.reducedMotion);
     flags.update(t);
+    breeze.update(t);
     smoke.forEach(({ mesh, origin, phase }) => {
       mesh.visible = s.worldSettings.effectsEnabled;
       const age = ((phase + t * .115) % 1), rise = age * 1.65;

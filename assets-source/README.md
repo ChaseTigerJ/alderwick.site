@@ -23,9 +23,9 @@ The [National Park Service nomination for Trinity Church, Newport](https://prese
 
 ## Coordinates and optimization
 
-Blender is Z-up with front -Y. glTF export converts to Y-up with front +Z. The island surface is at Y=0; water sits near Y=-0.975. Geometry is flat shaded and texture-free, with no runtime decoder extensions. Static parts are merged by material. Animated parts are merged only within their own pivot; the three cloth pennants and the actual ship hull keep separate named geometry for deformation and clearance checks. The exported model retains named empties and glTF extras, which Three.js exposes as `userData`.
+Blender is Z-up with front -Y. glTF export converts to Y-up with front +Z. The island surface is at Y=0; water sits near Y=-0.975. Geometry is flat shaded and texture-free, with no runtime decoder extensions. Static parts are merged by material. Animated parts are merged only within their own pivot; the three cloth pennants, flexible ship rigging, and actual ship hull keep separate named geometry for deformation and clearance checks. All seventeen trees and both mast assemblies have independent root pivots; meshes remain merged by material within each pivot. The exported model retains named empties and glTF extras, which Three.js exposes as `userData`.
 
-The current shipping GLB contains **90 meshes, 18,571 triangles, and 1,568,916 bytes**, with no textures or decoder dependencies. The modest extra meshes preserve cloth deformation, the actual hull boundary, and independent actors.
+The current shipping GLB contains **139 meshes, 19,923 triangles, and 1,638,420 bytes**, with no textures or decoder dependencies. The additional meshes preserve the tree and mast pivots, cloth and rigging deformation, the actual hull boundary, and independent actors. No texture or decoder dependency is added.
 
 `leaf_*` and `grass_*` materials identify seasonal vegetation. `roof_*` identifies roofs; `window_glow` identifies warm panes and lantern glass. Dedicated `shepherd_*`, `brass`, and `brass_dark` colors stay independent of seasonal vegetation. Material base colors are converted from sRGB swatches to linear space when authored.
 
@@ -41,6 +41,8 @@ Positions refer to the exported Y-up GLB. Preserve each node's authored rotation
 | `KhloeTail` | Rump pivot; wag about local Y. |
 | `KhloeLegFL`, `KhloeLegFR`, `KhloeLegBL`, `KhloeLegBR` | Shoulder/hip pivots; swing about local X. |
 | `MerchantShip` | Waterline root at `(3.45, -0.88, 5.20)`, authored Y heading -0.55, **uniform scale 1.48** (32% larger than the previous 1.12). Hull, sails, rigging, flags, and light anchors stay parented here. |
+| `ShipMast_0`, `ShipMast_1` | Fore/main mast pivots at ship-local `(0, 0.43, 0.48)` and `(0, 0.43, -0.45)`. Mast, yards, square sails, pennant, and attachment collars move together. Preserve their authored local transforms. |
+| `TreeBreeze_0`–`TreeBreeze_16` | Ground-rooted pivots: twelve alders followed by five pines. Each owns its trunk, branches, foliage, and any corresponding `TreeCanopy_*` marker. Metadata `kind` is `alder` or `pine`. Very small local X/Z rotation leaves the roots in place. |
 | `ShipHullBoundary` | The vessel’s actual hull mesh, preserved separately under `MerchantShip`; use its transformed vertices for island/dock clearance checks. |
 | `ChurchBell` | Suspension pivot `(0.604146, 3.24, -0.037276)`, authored Y heading -0.06. Swing local X to ring. |
 | `BellHitArea` | Child marker at world `(0.604146, 3.02, -0.037276)`, `userData.radius = 0.25`. |
@@ -70,7 +72,7 @@ Fisher cottage has a **real 0.54-unit-wide entry opening**, from Y=0.17 to Y=1.0
 - `LanternLight_0`: the remaining harbor lamp at `(1.38, 1.02, 2.58)`. The cottage-adjacent post, lamp, and old anchor are removed completely.
 - `ShipLanternLight_0`, `ShipLanternLight_1`: local positions `(-0.32, 1.025, -0.76)` and `(0.32, 1.025, -0.76)` under `MerchantShip`, at the two new stern lantern glass centers.
 - `ShipLanternLight_2`: local `(0, 0.59, -1.13)`, just outside the stern cabin windows, with `userData.kind = "cabin"`. Attach lights to their anchor nodes so the light follows every bob and rock. These coordinates precede the ship’s 1.48 scale.
-- `TreeCanopy_0`–`TreeCanopy_11`: centers of the twelve deciduous trees, each with `userData.radius`; tree geometry stays batched. The last alder is relocated to ground `(-3.3, 0, 3.15)`, canopy center `(-3.2538, 1.3475, 3.15)`, on the southwest shore. This keeps the garden visible from the default camera `(13, 13, 19)` without moving the plot or fences.
+- `TreeCanopy_0`–`TreeCanopy_11`: centers of the twelve deciduous trees, each with `userData.radius`; tree geometry stays batched by material within its matching `TreeBreeze_*` pivot. The last alder is relocated to ground `(-3.3, 0, 3.15)`, canopy center `(-3.2538, 1.3475, 3.15)`, on the southwest shore. This keeps the garden visible from the default camera `(13, 13, 19)` without moving the plot or fences.
 - `GardenPlot`: center `(-3.14, 0, 1.8)`, with `userData.width = 1.22`, `userData.depth = 0.98`. Soil and fence remain authored. **All old cabbage, pumpkin, and stalk meshes are removed** so the runtime owns seasonal planting and props.
 
 The garden lane now stops at Blender `(-3.08, -1.18)`, width 0.26, outside the soil's north edge Y=-1.31. It no longer runs through the planting area.
@@ -104,8 +106,23 @@ Approximate actor bounds for small interaction volumes:
 
 ## Cloth flags
 
-`FlagClothShip_0`, `FlagClothShip_1`, and `FlagClothHarbor` are individual 12-by-4 subdivided triangular pennants. The ship flags are children of `MerchantShip`; the harbor pennant is a scene root. They share `flag_cloth`, a two-sided material insulated from seasonal vegetation recoloring. The mailbox’s raised flag remains rigid metal and is not part of this set.
+`FlagClothShip_0`, `FlagClothShip_1`, and `FlagClothHarbor` are individual 12-by-4 subdivided triangular pennants. Each ship flag belongs to its corresponding `ShipMast_*` under `MerchantShip`; the harbor pennant is a scene root. They share `flag_cloth`, a two-sided material insulated from seasonal vegetation recoloring. The mailbox’s raised flag remains rigid metal and is not part of this set.
 
 All three expose `userData.hoistAxis = "x"`, `hoistAt = 0`, `waveAxis = "z"`, `flyLength` (0.38 ship / 0.57 harbor), and `waveAmplitude` (0.0255 ship / 0.042 harbor). These extras describe exported Y-up local geometry. Cache original positions and displace depth progressively by distance from the fixed X=0 hoist; retain the object’s local transform. No texture or physics solver is needed.
 
 Preview lights, camera, and water plane are created only after export and are excluded from the runtime GLB.
+
+## Sail and rigging clearance
+
+The four shrouds per mast run entirely aft of the billowed square sails. Their upper endpoints attach to a visible collar at ±0.045 local X, 0.055 aft of the mast center; the deck attachments follow the hull’s interpolated width so even the aft pair stays on the tapered stern deck. This clears both the canvas surface and the upper yards. The jib’s trailing edge clears the forward mast, and the forestay terminates at a short projecting mast cleat instead of entering the spar.
+
+`ShipRigging_0`, `ShipRigging_1`, `ShipForestay`, and `ShipForesail` remain separate children of `MerchantShip`. Each exposes `mastNode`, `breezeBaseHeight`, and `breezeTopHeight`. Geometry is authored in ship-local coordinates before export; after export heights are local Y. Cache original positions, convert through the mesh-to-ship transform, and apply the corresponding mast’s rotation delta weighted from zero at/below the base height to one at the upper attachment. This pins the deck or bowsprit while the upper ties follow the mast. Ropes have twelve longitudinal sections to keep their small flex smooth.
+
+| Flexible mesh | Mast | Fixed base Y | Upper attachment Y |
+| --- | --- | ---: | ---: |
+| `ShipRigging_0` | `ShipMast_0` | 0.43 | 2.55 |
+| `ShipRigging_1` | `ShipMast_1` | 0.43 | 2.90 |
+| `ShipForestay` | `ShipMast_0` | 0.85 | 2.74 |
+| `ShipForesail` | `ShipMast_0` | 0.88 | 2.49 |
+
+Tree and mast sway should stay much smaller than the existing ship rocking: the browser runtime caps combined rotation at roughly 0.24° for trees and 0.09° for masts. The animation clock remains frozen when reduced motion or the administrator’s animation setting disables motion.

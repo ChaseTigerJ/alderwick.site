@@ -319,15 +319,21 @@ empty('GraveHandAnchor',(1.08,3.20,.025))
 empty('BackIslandGhostAnchor',(-1.8,3.55,0))
 
 def tree(x,y,s=1,k='leaf_gold'):
+ pivot=anchor('TreeBreeze',(x,y,0));pivot['kind']='alder';before=set(bpy.data.objects)
  canopy=anchor('TreeCanopy',(x+.06*s,y,1.75*s));canopy['radius']=.82*s
  z=1.45*s;beam('Alder trunk',(x,y,0),(x+.07*s,y,z),.12*s,'wood_light')
  for dx,dy in [(-.36,0),(.3,.19),(.12,-.32)]:beam('Alder bough',(x,y,.72*s),(x+dx*s,y+dy*s,z+.2*s),.055*s,'wood_light',5)
  for dx,dy,dz,ss in [(-.31,0,.02,.68),(.36,.1,.17,.65),(.04,-.29,.19,.69),(.05,.13,.61,.64)]:
   o=ico('Alder crown',(x+dx*s,y+dy*s,z+dz*s),(ss*s,ss*s*.88,ss*s*.96),k,2);o.rotation_euler=(random.random()*.4,random.random()*.4,random.random()*math.tau)
  ico('Alder crown tip',(x-.13*s,y+.15*s,z+.74*s),(.38*s,.36*s,.35*s),'leaf_light' if k=='leaf_gold' else k)
+ bpy.context.view_layer.update()
+ for ob in set(bpy.data.objects)-before:parent_preserving_world(ob,pivot)
 def pine(x,y,s=1):
+ pivot=anchor('TreeBreeze',(x,y,0));pivot['kind']='pine';before=set(bpy.data.objects)
  beam('Pine trunk',(x,y,0),(x,y,2.1*s),.1*s,'wood_light')
  for i,(z,r) in enumerate([(1.02,.74),(1.53,.6),(1.97,.44)]):cone('Evergreen canopy',(x,y,z*s),r*s,0,1.25*s,'leaf_pine' if i%2==0 else 'leaf_pine_light',7).rotation_euler.z=i*.5
+ bpy.context.view_layer.update()
+ for ob in set(bpy.data.objects)-before:parent_preserving_world(ob,pivot)
 # The final alder is on the southwest shore, keeping the garden clear from
 # the default northeast camera while retaining all twelve canopy anchors.
 for x,y,s,k in [(-4.4,.75,1.15,'leaf_orange'),(-4.7,-.5,1.03,'leaf_gold'),(-4.6,1.8,.95,'leaf_gold'),(-2.5,2.9,1.07,'leaf_gold'),(-1,3.02,1.2,'leaf_orange'),(1.8,3,1.05,'leaf_green'),(3.2,2.43,1.2,'leaf_gold'),(4.28,1.43,1.08,'leaf_orange'),(4.7,-.18,1.02,'leaf_gold'),(3.67,-1.3,.78,'leaf_green'),(-4,-2,.74,'leaf_orange'),(-3.3,-3.15,.77,'leaf_gold')]:tree(x,y,s,k)
@@ -406,17 +412,58 @@ def cloth_pennant(name,p,length,height):
  for key,value in {'hoistAxis':'x','hoistAt':0.0,'flyLength':length,'waveAxis':'z','waveAmplitude':height*.15}.items():ob[key]=value
  return ob
 
+def flexible_rope_mesh(name,cables,mast_node,base_height,top_height):
+ # Longitudinal rings let runtime ease a taut cable with its mast while its
+ # deck/bowsprit end stays pinned. Authored coordinates are ship-local Z-up.
+ vertices=[];faces=[];steps=12;sides=6
+ for a,b,r in cables:
+  a=Vector(a);b=Vector(b);direction=(b-a).normalized()
+  u=direction.cross(Vector((1,0,0))).normalized();v=direction.cross(u).normalized();offset=len(vertices)
+  for step in range(steps+1):
+   center=a.lerp(b,step/steps)
+   for side in range(sides):
+    point=center+r*(u*math.cos(side*math.tau/sides)+v*math.sin(side*math.tau/sides));vertices.append(tuple(point))
+  for step in range(steps):
+   for side in range(sides):
+    a0=offset+step*sides+side;a1=offset+step*sides+(side+1)%sides
+    faces.append((a0,a1,a1+sides,a0+sides))
+  faces.append(tuple(offset+i for i in range(sides-1,-1,-1)))
+  faces.append(tuple(offset+steps*sides+i for i in range(sides)))
+ ob=mesh(name,vertices,faces,'wood')
+ for key,value in {'mastNode':mast_node,'breezeBaseHeight':base_height,'breezeTopHeight':top_height}.items():ob[key]=value
+ return ob
+
 for flag_index,(yy,top,w) in enumerate([(-.48,2.45,1.25),(.45,2.8,1.4)]):
+ mast_name='ShipMast_'+str(flag_index);mast=empty(mast_name,(0,yy,.43));mast['kind']='mast';before=set(bpy.data.objects)
  beam('Tall mast',(0,yy,.32),(0,yy,top+.3),.035,'wood_light');sail(yy,.94,w,.82,.21);sail(yy,1.84,w*.7,.55,.12)
- for side in [-1,1]:beam('Ship rigging',(side*.4,yy-.4,.43),(0,yy,top+.1),.011,'wood',4);beam('Ship rigging',(side*.4,yy+.42,.43),(0,yy,top+.1),.009,'wood',4)
+ # Shrouds terminate on a real collar, outside the mast. Every rope stays
+ # aft of the square canvas (whose backmost surface is yy-.04), so the
+ # billowed fabric cannot cut through the lines from any camera angle.
+ cone('Mast rigging collar',(0,yy,top+.1),.075,.075,.038,'wood',10)
+ if flag_index==0:beam('Forestay mast cleat',(0,yy,2.74),(0,yy-.085,2.74),.021,'wood',6)
  cloth_pennant('FlagClothShip_'+str(flag_index),(0,yy,top+.3),.38,.17)
-mesh('Triangular foresail',[(0,-1.64,.88),(0,-.5,2.49),(0,-.48,1.02)],[(0,1,2)],'canvas');beam('Forestay',(0,-1.81,.85),(0,-.48,2.74),.01,'wood',4)
+ bpy.context.view_layer.update()
+ for ob in set(bpy.data.objects)-before:parent_preserving_world(ob,mast)
+ cables=[]
+ for side in [-1,1]:
+  for aft_offset,radius in [(.20,.011),(.46,.009)]:
+   deck_y=yy+aft_offset
+   deck_width=next(ww+(nw-ww)*(deck_y-sy)/(ny-sy) for (sy,ww,zz),(ny,nw,nz) in zip(stations,stations[1:]) if sy<=deck_y<=ny)
+   cables.append(((side*min(.40,deck_width-.012),deck_y,.43),(side*.045,yy+.055,top+.1),radius))
+ flexible_rope_mesh('ShipRigging_'+str(flag_index),cables,mast_name,.43,top+.1)
+# The jib's trailing edge clears the forward mast by .04, and its luff stays
+# behind the forestay. Its bowsprit corner is pinned while the head follows
+# the mast, using the same inexpensive weighted deformation as the ropes.
+foresail=mesh('ShipForesail',[(0,-1.64,.88),(0,-.58,2.49),(0,-.56,1.02)],[(0,1,2)],'canvas')
+for key,value in {'mastNode':'ShipMast_0','breezeBaseHeight':.88,'breezeTopHeight':2.49}.items():foresail[key]=value
+flexible_rope_mesh('ShipForestay',[((0,-1.81,.85),(0,-.555,2.74),.01)],'ShipMast_0',.85,2.74)
 ship_objects=set(bpy.data.objects)-start
 ship=empty('MerchantShip',(3.45,-5.20,-.88));ship.rotation_euler.z=-.55
 # The authored hull uses a waterline origin. Parenting before moving the group
 # preserves that pivot for bobbing and rocking in the browser.
 ship.location=(0,0,0);ship.rotation_euler.z=0;bpy.context.view_layer.update()
-for ob in ship_objects:parent_preserving_world(ob,ship)
+for ob in ship_objects:
+ if ob.parent not in ship_objects:parent_preserving_world(ob,ship)
 # A 32% larger vessel has its own berth farther from the island. The hull's
 # stern clears the southeast cliff even during a rock; its bowsprit remains
 # inside the existing 8.35-unit water disk and clear of the dock.
@@ -510,8 +557,8 @@ for ob in list(bpy.context.scene.objects):
   bpy.ops.object.select_all(action='DESELECT');ob.select_set(True);bpy.context.view_layer.objects.active=ob;bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.separate(type='MATERIAL');bpy.ops.object.mode_set(mode='OBJECT')
 groups=defaultdict(list)
 for ob in list(bpy.context.scene.objects):
- if ob.type=='MESH' and not ob.name.startswith('FlagCloth') and ob.name!='ShipHullBoundary':
-  # Preserve cloth vertex grids and the vessel's actual collision silhouette.
+ if ob.type=='MESH' and not ob.name.startswith('FlagCloth') and ob.name!='ShipHullBoundary' and not ob.get('mastNode'):
+  # Preserve cloth grids, flexible rigging, and the vessel's actual silhouette.
   # Never merge a moving limb or ship into static island batches.
   parent_name=ob.parent.name if ob.parent else 'static'
   groups[(parent_name,ob.data.materials[0].name)].append(ob)

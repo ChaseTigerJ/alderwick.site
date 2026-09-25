@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pause, Play } from '@phosphor-icons/react';
 import type { IslandController } from './island-scene';
 import type { Season, WorldSettings } from './site-config';
 import { discoveries } from './discoveries';
 export type { Season } from './site-config';
-type Props = { night: boolean; season: Season; paused: boolean; reducedMotion: boolean; found: number[]; worldSettings: WorldSettings; onDiscover: (id: number) => void; action?: { id: number; nonce: number } | null; onTogglePause: () => void };
+type Props = { night: boolean; season: Season; paused: boolean; reducedMotion: boolean; found: number[]; worldSettings: WorldSettings; onDiscover: (id: number) => void; action?: { id: number; nonce: number } | null };
 export default function Island(props: Props) {
   const host = useRef<HTMLDivElement>(null);
   const controller = useRef<IslandController | null>(null);
@@ -40,8 +39,5 @@ export default function Island(props: Props) {
       <ul>{discoveries.map((discovery, index) => <li key={discovery.icon}><button onClick={() => props.onDiscover(index)}>{discovery.actionLabel}{props.found.includes(index) && <span className="sr-only"> — discovered</span>}</button></li>)}</ul>
       <span>Escape returns to the world.</span>
     </div>}
-    <div className="scene-bottom">
-      {props.worldSettings.animationEnabled && <button className="mobile-motion-control icon-button" aria-label={props.paused ? 'Resume world animation' : 'Pause world animation'} aria-pressed={props.paused} onClick={props.onTogglePause}>{props.paused ? <Play size={15} /> : <Pause size={15} />}</button>}
-    </div>
   </div>;
 }

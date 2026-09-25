@@ -73,7 +73,7 @@ Visitors can preview another mood in the discreet desktop **World mood** menu. T
 | `shakeEnabled` | `true` | Allows the miniature's shake interaction. It does not override reduced-motion preferences. |
 | `snowAmount` | `1` | Multiplies winter snow density (4,500 globe flakes at `1`, bounded from 2,250 to 9,000), including the page overlay. Any finite number from `0.5` to `2` is valid. |
 | `soundEnabled` | `true` | Allows sounds started by a visitor interaction, such as the church bell. Set `false` for a silent site. |
-| `animationEnabled` | `true` | Allows world animation. Set `false` to keep a still world; visitors can still inspect the scene. The pause button cannot override this setting. |
+| `animationEnabled` | `true` | Allows world animation. Set `false` to keep a still world; visitors can still inspect the scene. This also controls the subtle tree and mast breeze. There is no visitor play/pause button; reduced-motion preferences still take precedence. |
 | `discoveriesEnabled` | `true` | Enables object discoveries and their stories, keyboard alternatives, and the discovery section. Set `false` to disable them together. |
 | `easterEggsEnabled` | `true` | Allows rare sea visitors, an autumn sheet ghost, and a brief hand emerging from the churchyard grave. They are ambient surprises and do not affect discovery progress. |
 | `easterEggIntervalSeconds` | `60` | Base interval between surprises, randomized on each appearance. Any finite number from `20` to `300` is valid. Only one surprise plays at a time. |

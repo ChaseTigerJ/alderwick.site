@@ -118,7 +118,10 @@ test('cloth, moving ship lights, churchyard, and removed cottage lamp survive ex
     const columns = new Set(Array.from({ length: positions.count }, (_, i) => positions.getX(i).toFixed(4)));
     assert.ok(columns.size >= 10, 'cloth has enough subdivisions to wave instead of rigidly rotating');
     assert.ok([...columns].some(value => Math.abs(Number(value) - flag.userData.flyLength) < .001));
-    if (name.startsWith('FlagClothShip')) assert.equal(flag.parent, ship);
+    if (name.startsWith('FlagClothShip')) {
+      assert.equal(flag.parent?.name, name.replace('FlagClothShip', 'ShipMast'));
+      assert.equal(flag.parent?.parent, ship, 'mast-mounted cloth inherits vessel rocking');
+    }
   }
   for (let i = 0; i < 3; i++) assert.equal(model.getObjectByName(`ShipLanternLight_${i}`)?.parent, ship, 'every vessel light follows its rocking root');
   const lamps: THREE.Object3D[] = []; model.traverse(object => { if (object.name.startsWith('LanternLight_')) lamps.push(object); });

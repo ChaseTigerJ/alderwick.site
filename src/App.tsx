@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { ArrowDown, ArrowRight, Check, Compass, Leaf, Moon, Pause, Play, Sparkle, Sun, TreeEvergreen, X } from '@phosphor-icons/react';
+import { ArrowDown, ArrowRight, Check, Compass, Leaf, Moon, Sparkle, Sun, TreeEvergreen, X } from '@phosphor-icons/react';
 import Island, { type Season } from './Island';
 import { AdventureButton, AvailabilityDialog, StoreButtons, type AvailabilityKind } from './Availability';
 import { useSiteSettings } from './use-site-settings';
@@ -16,8 +16,7 @@ const chapters = [
 export default function App() {
   const reduced = !!useReducedMotion();
   const { config, release, mobile, night, season, downloadAvailable, previewNight, previewSeason, useAutomaticWorld, manualWorld, worldSettings, interfaceSettings } = useSiteSettings();
-  const [paused, setPaused] = useState(false);
-  const worldPaused = paused || !worldSettings.animationEnabled;
+  const worldPaused = !worldSettings.animationEnabled;
   const [found, setFound] = useState<number[]>([]);
   const [discovery, setDiscovery] = useState<number | null>(null);
   const [action, setAction] = useState<{ id: number; nonce: number } | null>(null);
@@ -50,7 +49,7 @@ export default function App() {
           <p className="cta-note">{mobile ? <>A little world, soon in your pocket.</> : downloadAvailable ? <>For desktop <span>·</span> Start something small</> : <>Good things take a little growing.</>}</p>
         </motion.div>
         <div className="world-stage" id="island">
-          <Island worldSettings={worldSettings} night={night} season={season} paused={worldPaused} reducedMotion={reduced} found={found} onDiscover={discover} action={action} onTogglePause={() => setPaused(value => !value)} />
+          <Island worldSettings={worldSettings} night={night} season={season} paused={worldPaused} reducedMotion={reduced} found={found} onDiscover={discover} action={action} />
         </div>
         {interfaceSettings.showWorldSettings && <details className="world-settings">
           <summary><Leaf size={14} /> World mood</summary>
@@ -60,7 +59,6 @@ export default function App() {
               <button aria-label="Nighttime" aria-pressed={night} onClick={() => previewNight(true)}><Moon size={18} weight={night ? 'fill' : 'regular'} /></button>
             </div>
             <div className="season-picker"><label htmlFor="season">A change of season</label><div><Leaf size={15} /><select id="season" value={season} onChange={event => previewSeason(event.target.value as Season)}><option value="spring">Spring</option><option value="summer">Summer</option><option value="autumn">Autumn</option><option value="winter">Winter</option></select></div></div>
-            {worldSettings.animationEnabled && <button className="icon-button pause-button" aria-label={paused ? 'Resume world animation' : 'Pause world animation'} aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? <Play size={16} /> : <Pause size={16} />}</button>}
             {manualWorld && <button className="automatic-world" onClick={useAutomaticWorld}>Use my current day & season</button>}
           </div>
         </details>}
