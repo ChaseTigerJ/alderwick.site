@@ -1,17 +1,15 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createVillageVisitor } from './village-visitor.ts';
+import { createKhloeAnimation } from './khloe-animation.ts';
 
 export const PAWPRINT_LIFETIME = 5;
 
 /** Small, bounded performances. Everything shares the scene clock and stops offscreen. */
-export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
+export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D, clips: THREE.AnimationClip[] = []) {
   const visitor = createVillageVisitor(scene, model);
   const dog = model.getObjectByName('Khloe');
-  const body = model.getObjectByName('KhloeBody');
-  const head = model.getObjectByName('KhloeHead');
-  const tail = model.getObjectByName('KhloeTail');
-  const legs = ['FL', 'FR', 'BL', 'BR'].map(id => model.getObjectByName(`KhloeLeg${id}`));
+  const character = dog ? createKhloeAnimation(dog, clips) : undefined;
   const boat = model.getObjectByName('MerchantShip');
   const boatBase = boat?.position.clone();
   const boatRotation = boat?.rotation.clone();
@@ -19,10 +17,6 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
   const bell = model.getObjectByName('ChurchBell'), bellBase = bell?.rotation.clone();
   const mailboxDoor = model.getObjectByName('MailboxDoor'), doorBase = mailboxDoor?.rotation.clone();
   const bucket = model.getObjectByName('WellBucket'), bucketBase = bucket?.position.clone();
-  const bodyBase = body?.position.clone();
-  const joints = [body, head, tail, ...legs];
-  const jointRotations = joints.map(joint => joint?.rotation.clone());
-  const jointPositions = joints.map(joint => joint?.position.clone());
   const path = new THREE.CatmullRomCurve3([
     new THREE.Vector3(-.8, .015, 1.65), new THREE.Vector3(-1.25, .015, 2.05),
     new THREE.Vector3(-.95, .015, 2.62), new THREE.Vector3(-.3, .015, 2.94),
@@ -124,36 +118,11 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
       const headingDelta = Math.atan2(Math.sin(heading - dog.rotation.y), Math.cos(heading - dog.rotation.y));
       dog.rotation.y += headingDelta * (firstPose ? 1 : motion ? Math.min(delta * 6, 1) : 0);
       dog.position.copy(position);
-      // Restore authored joint rotations before applying gait/performances.
-      joints.forEach((joint, i) => { if (joint && jointRotations[i] && jointPositions[i]) { joint.rotation.copy(jointRotations[i]!); joint.position.copy(jointPositions[i]!); } });
-      if (body && bodyBase) body.position.copy(bodyBase);
-      const gait = distance * 15;
-      legs.forEach((leg, i) => { if (leg && walking) leg.rotation.x += Math.sin(gait + (i === 0 || i === 3 ? 0 : Math.PI)) * .42; });
-      if (body && walking) body.position.y += Math.abs(Math.sin(gait)) * .016;
-      if (head) { head.rotation.z += Math.sin(time * .85) * .035; if (sniffing) head.rotation.x += .46 + Math.sin(time * 4) * .055; }
-      if (tail) { tail.rotation.y += Math.sin(time * (playing ? 15 : 5)) * (playing ? .6 : .2); tail.rotation.x += playing ? -.16 : 0; }
-      if (playing) {
-        if (dogElapsed < 1.5) {
-          // Front paws down, hindquarters up: a recognisable invitation to play.
-          const bow = Math.sin(Math.min(dogElapsed / 1.5, 1) * Math.PI);
-          if (body) { body.rotation.x += .20 * bow; body.position.y -= .055 * bow; }
-          if (head) { head.rotation.x -= .18 * bow; head.position.y -= .10 * bow; head.position.z += .035 * bow; }
-          if (tail) tail.position.y += .015 * bow;
-          legs.forEach((leg, i) => {
-            if (!leg) return;
-            const swing = (i < 2 ? -.65 : .2) * bow; leg.rotation.x += swing;
-            if (i < 2) leg.position.y += -.343 * (1 - Math.cos(swing)) + .03 * Math.sin(swing);
-          });
-        } else if (dogElapsed < 3.6) {
-          const bounce = Math.abs(Math.sin((dogElapsed - 1.5) * Math.PI * 1.4));
-          dog.position.y += bounce * .22;
-          legs.forEach((leg, i) => { if (leg) leg.rotation.x += (i < 2 ? -.48 : .35) * bounce; });
-          if (head) head.rotation.z += Math.sin(dogElapsed * 6) * .12;
-        } else if (head) head.rotation.z += Math.sin((dogElapsed - 3.6) * Math.PI) * .28;
-      } else if (!walking && !sniffing && head) head.rotation.z += Math.sin((routine - 13) * 1.8) * .18;
+      character?.update(delta, motion, { walking, sniffing, playing, dogElapsed });
       if (winter && walking && motion && distance - lastPrintDistance > .16) {
-        const side = printNumber % 4 < 2 ? -.12 : .12;
-        for (const forward of [.24, -.25]) addPrint(dog.position.x + Math.cos(heading) * side + Math.sin(heading) * forward, dog.position.z - Math.sin(heading) * side + Math.cos(heading) * forward, heading);
+        const side = printNumber % 4 < 2 ? -1 : 1;
+        // Match the new rig's narrower forepaws and slightly wider rear stance.
+        for (const [forward, spread] of [[.245, .08], [-.24, .10]]) addPrint(dog.position.x + Math.cos(heading) * side * spread + Math.sin(heading) * forward, dog.position.z - Math.sin(heading) * side * spread + Math.cos(heading) * forward, heading);
         lastPrintDistance = distance;
       }
       dogPin.copy(dog.position).add(new THREE.Vector3(0, 1.05, 0));
@@ -228,5 +197,5 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
     });
     return { dogPin, shipPin, active: playing || showLetter || time - boatAction < 5 || bellElapsed < 4.2 || wishing };
   }
-  return { update, trigger, isActive, dog, boat, dogBase };
+  return { update, trigger, isActive, dog, boat, dogBase, dispose: () => character?.dispose() };
 }

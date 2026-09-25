@@ -10,16 +10,17 @@ async function fixture() {
   const asset = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
   const scene = new THREE.Scene(); scene.add(asset.scene); asset.scene.updateMatrixWorld(true);
   const camera = new THREE.PerspectiveCamera(34, 1, .1, 120); camera.position.set(13, 13, 19); camera.lookAt(0, .7, 0);
-  return { scene, model: asset.scene, camera, life: createIslandLife(scene, asset.scene) };
+  return { scene, model: asset.scene, camera, life: createIslandLife(scene, asset.scene, asset.animations) };
 }
 test('export preserves articulated dog, ship pivot and exact effect anchors', async () => {
   const { model } = await fixture();
-  for (const name of ['Khloe', 'KhloeBody', 'KhloeHead', 'KhloeTail', 'KhloeLegFL', 'KhloeLegFR', 'KhloeLegBL', 'KhloeLegBR', 'MerchantShip', 'PipLetterAnchor', 'Mailbox', 'MailboxDoor', 'ChurchBell', 'WishingWell', 'WellBucket', 'VillageDoor', 'DoorVisitorStart', 'DoorVisitorEnd', 'GardenPlot']) assert.ok(model.getObjectByName(name), name);
+  for (const name of ['Khloe', 'MerchantShip', 'PipLetterAnchor', 'Mailbox', 'MailboxDoor', 'ChurchBell', 'WishingWell', 'WellBucket', 'VillageDoor', 'DoorVisitorStart', 'DoorVisitorEnd', 'GardenPlot']) assert.ok(model.getObjectByName(name), name);
   for (let i = 0; i < 2; i++) assert.ok(model.getObjectByName(`ChimneySmoke_${i}`));
   for (let i = 0; i < 17; i++) assert.ok(model.getObjectByName(`WindowLight_${i}`));
   assert.ok(model.getObjectByName('LanternLight_0'));
   assert.equal(model.getObjectByName('LanternLight_1'), undefined, 'Cottage-adjacent lamp removed');
-  assert.equal(model.getObjectByName('Khloe')!.children.filter(node => node.name.startsWith('Khloe')).length, 7);
+  let skinned = false; model.getObjectByName('Khloe')!.traverse(object => { if (object instanceof THREE.SkinnedMesh) skinned = true; });
+  assert.ok(skinned, 'Khloé uses a deforming skin rather than detached rigid parts');
   assert.equal(model.getObjectByName('ChimneySmoke_2'), undefined, 'Only the two remaining cottages have chimneys');
   assert.equal(model.getObjectByName('CottageFootprint_3'), undefined, 'The cramped rear cottage is removed');
   assert.ok(Math.abs(model.getObjectByName('MerchantShip')!.scale.x - 1.48) < .001);
@@ -66,7 +67,7 @@ test('each discovery plays once, cannot stack during playback, and returns to id
   assert.equal(life.trigger(2, false), false, 'a running performance must not restart');
   life.trigger(0, false); life.update(.5, true, false, camera); assert.equal(scene.getObjectByName('PipsLetter')!.visible, true);
   life.trigger(1, false); life.update(.7, true, false, camera);
-  assert.ok(life.dog!.getObjectByName('KhloeLegFL')!.rotation.x < -.3);
+  assert.equal(life.isActive(1), true, 'the authored playful clip runs for one bounded performance');
   const pausedRotation = life.dog!.rotation.y;
   camera.position.set(-13, 13, -19); life.update(.1, false, false, camera);
   assert.equal(life.dog!.rotation.y, pausedRotation, 'orbiting the camera cannot turn a paused dog');
@@ -109,4 +110,21 @@ test('object picking follows actors and respects nearer scenery occlusion', () =
   ray.ray.origin.x = 2; assert.equal(pick(ray), 1);
   const wall = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 1), new THREE.MeshBasicMaterial()); wall.position.set(2, 0, 3); model.add(wall);
   assert.equal(pick(ray), null, 'the dog cannot be clicked through a house');
+});
+
+test('picking follows a skinned limb beyond its original bounds', () => {
+  const model = new THREE.Group(), dog = new THREE.Group(); dog.name = 'Khloe'; model.add(dog);
+  const geometry = new THREE.BoxGeometry(.4, .4, .4), count = geometry.getAttribute('position').count;
+  const indices = new Uint16Array(count * 4), weights = new Float32Array(count * 4);
+  for (let i = 0; i < count; i++) weights[i * 4] = 1;
+  geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(indices, 4));
+  geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
+  const skin = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial()), bone = new THREE.Bone();
+  dog.add(skin); dog.add(bone); model.updateMatrixWorld(true); skin.bind(new THREE.Skeleton([bone]));
+  const pick = createIslandPicker(model), ray = new THREE.Raycaster(new THREE.Vector3(0, 0, 10), new THREE.Vector3(0, 0, -1));
+  assert.equal(pick(ray), 1);
+  bone.position.x = 2;
+  assert.equal(pick(ray), null, 'bind-pose bounds cannot remain clickable after deformation');
+  ray.ray.origin.x = 2;
+  assert.equal(pick(ray), 1, 'the new pose remains clickable outside its original sphere');
 });

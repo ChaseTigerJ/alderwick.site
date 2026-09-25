@@ -6,6 +6,8 @@ const actors = ['Mailbox', 'Khloe', 'MerchantShip', 'ChurchBell', 'WishingWell',
 /** Pick the miniature's objects, never a screen-space marker or hidden DOM target. */
 export function createIslandPicker(model: THREE.Object3D) {
   const roots = actors.map(name => name ? model.getObjectByName(name) : undefined);
+  const skins: THREE.SkinnedMesh[] = [];
+  model.traverse(object => { if (object instanceof THREE.SkinnedMesh) skins.push(object); });
   const box = new THREE.Box3(), point = new THREE.Vector3();
   const treeCenters: THREE.Vector3[] = [];
   model.traverse(object => {
@@ -20,6 +22,12 @@ export function createIslandPicker(model: THREE.Object3D) {
   }
   return (ray: THREE.Raycaster): number | null => {
     model.updateMatrixWorld(true);
+    // Raycasting and forgiving hit bounds must follow the current animated pose.
+    for (const skin of skins) {
+      skin.computeBoundingBox();
+      skin.boundingSphere ??= new THREE.Sphere();
+      skin.boundingBox!.getBoundingSphere(skin.boundingSphere);
+    }
     const surface = ray.intersectObject(model, true).find(hit => hit.object instanceof THREE.Mesh && hit.object.visible);
     if (surface) {
       const id = actorId(surface.object);

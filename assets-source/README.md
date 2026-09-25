@@ -1,7 +1,8 @@
 # Alderwick harbor diorama
 
-Original low-poly geometry authored procedurally in Blender. No third-party models or textures are included.
+The harbor geometry is authored procedurally in Blender. Khloé uses a refined, skinned German Shepherd based on Quaternius’s CC0 model; see [character sources and provenance](../docs/KHLOE.md).
 
+- `khloe/`: character source, rig, authored animation clips, build script and original CC0 asset provenance.
 - `create_island.py`: deterministic construction/export script (seed 41).
 - `alderwick-island.blend`: editable scene with individual building parts, joints, and effect anchors.
 - `../public/models/alderwick-island.glb`: shipping model, merged by material within each independently animated group.
@@ -10,10 +11,12 @@ Original low-poly geometry authored procedurally in Blender. No third-party mode
 ## Rebuild
 
 ```sh
+/Applications/Blender.app/Contents/MacOS/Blender --background --python assets-source/khloe/build_khloe.py
 /Applications/Blender.app/Contents/MacOS/Blender --background --python assets-source/create_island.py
+/Applications/Blender.app/Contents/MacOS/Blender --background --python assets-source/create_khloe_404.py
 ```
 
-The script saves the editable Blender scene, exports the GLB, then renders `/tmp/alderwick-island-preview.png`. Blender needs permission to initialize its graphics device. The source uses Blender 5.2.2 APIs.
+The character builder produces the shared rig and clips at 30 fps. The island script preserves that frame rate when exporting animation timestamps. It saves the editable island scene, exports the GLB, then renders `/tmp/alderwick-island-preview.png`. Blender needs permission to initialize its graphics device. The source uses Blender 5.2.2 APIs.
 
 ## Design references
 
@@ -23,11 +26,11 @@ The [National Park Service nomination for Trinity Church, Newport](https://prese
 
 ## Coordinates and optimization
 
-Blender is Z-up with front -Y. glTF export converts to Y-up with front +Z. The island surface is at Y=0; water sits near Y=-0.975. Geometry is flat shaded and texture-free, with no runtime decoder extensions. Static parts are merged by material. Animated parts are merged only within their own pivot; the three cloth pennants, flexible ship rigging, and actual ship hull keep separate named geometry for deformation and clearance checks. All seventeen trees and both mast assemblies have independent root pivots; meshes remain merged by material within each pivot. The exported model retains named empties and glTF extras, which Three.js exposes as `userData`.
+Blender is Z-up with front -Y. glTF export converts to Y-up with front +Z. The island surface is at Y=0; water sits near Y=-0.975. The harbor uses faceted geometry; Khloé has a continuous skinned surface. The shipping asset is texture-free, with no runtime decoder extensions. Static parts are merged by material. Animated parts are merged only within their own pivot; the three cloth pennants, flexible ship rigging, and actual ship hull keep separate named geometry for deformation and clearance checks. All seventeen trees and both mast assemblies have independent root pivots; meshes remain merged by material within each pivot. The exported model retains named empties and glTF extras, which Three.js exposes as `userData`.
 
-The current shipping GLB contains **139 meshes, 20,227 triangles, and 1,648,304 bytes**, with no textures or decoder dependencies. The additional meshes preserve the tree and mast pivots, cloth and rigging deformation, the actual hull boundary, and independent actors. No texture or decoder dependency is added.
+The shipping model preserves the tree and mast pivots, cloth and rigging deformation, the actual hull boundary, and independently animated actors. Character skins are excluded from static mesh batching.
 
-`leaf_*` and `grass_*` materials identify seasonal vegetation. `roof_*` identifies roofs; `window_glow` identifies warm panes and lantern glass. Dedicated `shepherd_*`, `brass`, and `brass_dark` colors stay independent of seasonal vegetation. Material base colors are converted from sRGB swatches to linear space when authored.
+`leaf_*` and `grass_*` materials identify seasonal vegetation. `roof_*` identifies roofs; `window_glow` identifies warm panes and lantern glass. Dedicated `Khloe*`, `brass`, and `brass_dark` colors stay independent of seasonal vegetation. Material base colors are converted from sRGB swatches to linear space when authored.
 
 ## Runtime actors
 
@@ -36,10 +39,7 @@ Positions refer to the exported Y-up GLB. Preserve each node's authored rotation
 | Node | Contract |
 | --- | --- |
 | `Khloe` | Root at `(-0.74, 0, 1.65)`, uniform scale 0.86, forward +Z. |
-| `KhloeBody` | Torso pivot; preserve slimmed scale `(0.82, 0.90, 1)`. |
-| `KhloeHead` | Neck-base pivot; neck, muzzle, upright ears, and pink collar move together. |
-| `KhloeTail` | Rump pivot; wag about local Y. |
-| `KhloeLegFL`, `KhloeLegFR`, `KhloeLegBL`, `KhloeLegBR` | Shoulder/hip pivots; swing about local X. |
+| Khloé’s armature and skinned meshes | Deform through exported animation clips; never rotate separate primitive limbs or merge the skin into static batches. |
 | `MerchantShip` | Waterline root at `(3.45, -0.88, 5.20)`, authored Y heading -0.55, **uniform scale 1.48** (32% larger than the previous 1.12). Hull, sails, rigging, flags, and light anchors stay parented here. |
 | `ShipMast_0`, `ShipMast_1` | Fore/main mast pivots at ship-local `(0, 0.43, 0.48)` and `(0, 0.43, -0.45)`. Mast, yards, square sails, pennant, and attachment collars move together. Preserve their authored local transforms. |
 | `TreeBreeze_0`–`TreeBreeze_16` | Ground-rooted pivots: twelve alders followed by five pines. Each owns its trunk, branches, foliage, and any corresponding `TreeCanopy_*` marker. Metadata `kind` is `alder` or `pine`. Very small local X/Z rotation leaves the roots in place. |
@@ -59,7 +59,7 @@ Positions refer to the exported Y-up GLB. Preserve each node's authored rotation
 | `GraveHandAnchor` | World `(1.08, 0.025, -3.20)`, lawn in front of the eastern headstone behind the church. |
 | `BackIslandGhostAnchor` | World `(-1.8, 0, -3.55)` on the rear lawn beyond the tree canopies. The ±0.50 X / ±0.10 Z loop has at least 0.20 center clearance from the cliff edge and 0.18 clearance from solid scenery. |
 
-Khloe remains a slender tan-and-black German Shepherd with a dark saddle, long wedge muzzle, erect ears, bent rear hocks, low feathered tail, and pink collar. Her complete nose-to-tail length is about 1.17 units and ear-tip height about 0.70 units after root scaling.
+Khloé’s `KhloeIdle`, `KhloeWalk`, `KhloeSniff`, `KhloePlay` and `KhloeSitCurious` clips share one character. The website controls her path with the root, blends the skeletal poses and preserves reduced-motion behavior. The 404 renderer uses the same skin and seated pose. See [character documentation](../docs/KHLOE.md).
 
 Fisher cottage has a **real 0.54-unit-wide entry opening**, from Y=0.17 to Y=1.08. Its walls, siding, and lower timber are split around the opening. The 0.50-by-0.91-unit door leaf is separately grouped; there is no solid wall behind it. A dark interior lies farther inside. This clearance accommodates the approximately 0.82-unit-tall Pip visitor. The mailbox is mounted below the right sash; that window's herb box is removed.
 
@@ -129,4 +129,4 @@ Tree and mast sway should stay much smaller than the existing ship rocking: the 
 
 ## Khloé’s 404 portrait
 
-`create_khloe_404.py` reads the original island `.blend` and isolates Khloé in a seated pose, with grounded front paws, folded hind legs, her original collar/face, and a 16-degree head tilt. It leaves the island source and shipping GLB unchanged. Run Blender in the repository root with `--background --python assets-source/create_khloe_404.py`, then run the Pillow WebP command in the script header. The shipping `public/images/khloe-404.webp` is 1000×1100 RGBA and 38,222 bytes, with fully transparent borders. The page supplies the soft contact shadow.
+`create_khloe_404.py` reads `khloe/khloe.blend` and samples `KhloeSitCurious` at 0.7 seconds, with grounded forepaws, folded hind legs, and an approximately 14-degree head tilt. It leaves the island source and shipping GLB unchanged. Run Blender in the repository root with `--background --python assets-source/create_khloe_404.py`, then encode the rendered PNG with Pillow using quality 94, method 6, and exact alpha preservation. The shipping `public/images/khloe-404.webp` is 1000×1100 RGBA with fully transparent borders. The page supplies the soft contact shadow.

@@ -1,4 +1,5 @@
-"""Original Alderwick harbor. Deterministic Blender source, no external assets.
+"""Alderwick harbor. Deterministic Blender source with Khloé’s adapted CC0 character.
+Character source and attribution: assets-source/khloe/ and docs/KHLOE.md.
 Run Blender --background --python assets-source/create_island.py
 Source Z up, front -Y. Export Y up, front +Z.
 """
@@ -21,8 +22,6 @@ material('brass','C79C4A');material('brass_dark','795730')
 material('flag_cloth','954D46');material('grave_slate','777E78');material('grave_carving','A6ABA0')
 material('church_clapboard','E6DFC8');material('church_trim','F4EED9');material('roof_church','657063');material('roof_church_courses','818B79')
 M['brass'].node_tree.nodes.get('Principled BSDF').inputs['Roughness'].default_value=.46
-# Dedicated dog colors prevent seasonal vegetation changes from recoloring Khloe.
-for name,color in {'shepherd_tan':'B58B56','shepherd_gold':'CBA56F','shepherd_cream':'D9BC8A','shepherd_sable':'554536','shepherd_black':'292A25','shepherd_nose':'202421','shepherd_eye':'120F0C','shepherd_inner_ear':'785F52','shepherd_pink':'D793AD'}.items():material(name,color)
 def empty(name,position=(0,0,0)):
  ob=bpy.data.objects.new(name,None);bpy.context.collection.objects.link(ob);ob.location=position;ob.empty_display_type='PLAIN_AXES';ob.empty_display_size=.12;return ob
 def parent_preserving_world(ob,parent):
@@ -476,79 +475,19 @@ for ob in ship_objects:
 # inside the existing 8.35-unit water disk and clear of the dock.
 ship.location=(3.45,-5.20,-.88);ship.rotation_euler.z=-.55;ship.scale=(1.48,1.48,1.48)
 
-# Khloe: an articulated, flat-shaded German Shepherd. Nose points along -Y.
-# The feet stand on Z=0; joint empties are the runtime animation contract.
-khloe=empty('Khloe')
-def joint(name,position):
- ob=empty(name,position);bpy.context.view_layer.update();parent_preserving_world(ob,khloe);return ob
-def bind(part,objects):
- bpy.context.view_layer.update()
- for ob in objects:parent_preserving_world(ob,part)
-def build_part(part,builder):
- before=set(bpy.data.objects);builder();bind(part,set(bpy.data.objects)-before)
-body=joint('KhloeBody',(0,0,.39))
-def dog_body():
- # Slightly sloping topline, deep chest, tucked waist, and haunches.
- ico('Khloe tan ribcage',(0,-.02,.38),(.145,.32,.175),'shepherd_tan',2)
- ico('Khloe golden chest',(0,-.225,.37),(.145,.135,.18),'shepherd_gold',2)
- ico('Khloe black saddle',(0,.045,.47),(.146,.265,.1),'shepherd_black',2)
- ico('Khloe sable flank left',(-.127,.085,.37),(.037,.21,.113),'shepherd_sable',1)
- ico('Khloe sable flank right',(.127,.085,.37),(.037,.21,.113),'shepherd_sable',1)
- ico('Khloe cream brisket',(0,-.286,.325),(.097,.04,.125),'shepherd_cream',1)
- for sign in [-1,1]:ico('Khloe hind haunch',(sign*.11,.22,.33),(.075,.105,.135),'shepherd_tan',2)
-build_part(body,dog_body)
-# Slim the torso without changing her legs, face, posture, or runtime joint names.
-body.scale=(.82,1,.90)
-head=joint('KhloeHead',(0,-.23,.41))
-def dog_head():
- # Upright neck, long wedge muzzle, strong brow, and very tall erect ears.
- neck=ico('Khloe neck',(0,-.275,.49),(.111,.14,.19),'shepherd_gold',2);neck.rotation_euler.x=.32
- ico('Khloe neck sable ruff',(0,-.206,.51),(.12,.071,.16),'shepherd_sable',1)
- ico('Khloe cheek left',(-.07,-.367,.575),(.061,.11,.083),'shepherd_gold',1)
- ico('Khloe cheek right',(.07,-.367,.575),(.061,.11,.083),'shepherd_gold',1)
- ico('Khloe head wedge',(0,-.386,.604),(.103,.141,.113),'shepherd_sable',2)
- ico('Khloe tan forehead',(0,-.378,.669),(.076,.103,.059),'shepherd_tan',1)
- muzzle=ico('Khloe long black muzzle',(0,-.511,.56),(.07,.131,.058),'shepherd_black',1);muzzle.rotation_euler.x=-.075
- ico('Khloe lower jaw',(0,-.5,.533),(.056,.112,.022),'shepherd_tan',1)
- ico('Khloe black nose',(0,-.619,.566),(.055,.036,.04),'shepherd_nose',1)
- for sign in [-1,1]:
-  # Thin triangular ears, with ear opening toward her nose. Outer tips splay subtly.
-  bx=sign*.066
-  mesh('Khloe upright pointed ear',[(bx-.044,-.359,.676),(bx+.044,-.359,.676),(bx+sign*.022,-.324,.815),(bx-.035,-.305,.671),(bx+.035,-.305,.671)],[(0,1,2),(2,4,3),(0,2,3),(1,4,2),(0,3,4,1)],'shepherd_black')
-  mesh('Khloe warm ear inset',[(bx-.029,-.363,.69),(bx+.029,-.363,.69),(bx+sign*.017,-.334,.784)],[(0,1,2)],'shepherd_inner_ear')
-  eye=ico('Khloe dark almond eye',(sign*.082,-.456,.626),(.018,.016,.017),'shepherd_eye',1)
-  ico('Khloe eye glint',(sign*.085,-.468,.633),(.004,.004,.004),'shepherd_cream',1)
-  brow=ico('Khloe golden eyebrow',(sign*.07,-.447,.654),(.034,.028,.016),'shepherd_gold',1);brow.rotation_euler.y=sign*.17
- # A bright continuous collar and a small brass tag read clearly at hero scale.
- collar=cone('Khloe pink collar',(0,-.288,.466),.119,.119,.055,'shepherd_pink',10);collar.rotation_euler.x=.34
- ico('Khloe brass collar tag',(0,-.409,.444),(.025,.012,.031),'leaf_light',1)
-build_part(head,dog_head)
-# The whole leg turns at its shoulder or hip. The hind-leg silhouette includes
-# the breed's characteristic bent stifle and low rear hock.
-for side,sign in [('L',-1),('R',1)]:
- for placement,yy in [('F',-.21),('B',.21)]:
-  xx=sign*.107;pivot_z=.375 if placement=='F' else .36
-  leg=joint('KhloeLeg'+placement+side,(xx,yy,pivot_z))
-  before=set(bpy.data.objects)
-  if placement=='F':
-   beam('Khloe front upper leg',(xx,yy,.375),(xx,yy+.015,.205),.039,'shepherd_tan',6)
-   beam('Khloe front lower leg',(xx,yy+.015,.205),(xx,yy-.002,.045),.029,'shepherd_gold',6)
-   ico('Khloe front paw',(xx,yy-.03,.032),(.049,.077,.032),'shepherd_gold',1)
-  else:
-   beam('Khloe hind thigh',(xx,yy,.36),(xx,yy-.065,.203),.051,'shepherd_tan',6)
-   beam('Khloe hind hock',(xx,yy-.065,.203),(xx,yy+.07,.106),.032,'shepherd_gold',6)
-   beam('Khloe hind pastern',(xx,yy+.07,.106),(xx,yy+.05,.04),.026,'shepherd_gold',6)
-   ico('Khloe hind paw',(xx,yy+.016,.03),(.046,.074,.03),'shepherd_gold',1)
-  bind(leg,set(bpy.data.objects)-before)
-tail=joint('KhloeTail',(0,.268,.415))
-def dog_tail():
- # Heavy feathered tail curves downward at rest instead of curling like a husky.
- beam('Khloe tail upper',(0,.265,.416),(.045,.395,.334),.068,'shepherd_sable',7)
- beam('Khloe tail middle',(.045,.395,.334),(.088,.529,.222),.065,'shepherd_sable',7)
- beam('Khloe tail lower',(.088,.529,.222),(.105,.644,.167),.046,'shepherd_black',7)
- beam('Khloe tail tip',(.105,.644,.167),(.095,.71,.19),.027,'shepherd_black',6)
-build_part(tail,dog_tail)
-khloe.location=(-.74,-1.65,0);khloe.scale=(.86,.86,.86)
+# Khloé is a continuous skinned character; the portrait uses this same source.
+# Preserve its armature, coat materials, weights and named actions through export.
+# Character actions are baked at 30 fps; glTF derives seconds from this scene.
+bpy.context.scene.render.fps=30
+character_source=os.path.join(ROOT,'assets-source','khloe','khloe.blend')
+with bpy.data.libraries.load(character_source,link=False) as (source,target):
+ target.objects=[name for name in source.objects if name.startswith('Khloe')]
+ target.actions=[name for name in source.actions if name.startswith('Khloe')]
+for ob in target.objects:
+ if ob:
+  bpy.context.collection.objects.link(ob)
+  ob['khloeCharacter']=True
+khloe=bpy.data.objects['Khloe'];khloe.location=(-.74,-1.65,0);khloe.scale=(.86,.86,.86)
 # Keep only the harbor lamp; remove the post crowding Fisher cottage entirely.
 for x,y in [(1.38,-2.58)]:
  anchor('LanternLight',(x,y,1.02))
@@ -560,11 +499,11 @@ beam('Flagpole',(-.15,-3.6,0),(-.15,-3.6,1.42),.025,'wood_light');cloth_pennant(
 # Source remains independently editable; the shipping file uses material batches.
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT,'assets-source','alderwick-island.blend'))
 for ob in list(bpy.context.scene.objects):
- if ob.type=='MESH' and len(ob.data.materials)>1:
+ if ob.type=='MESH' and len(ob.data.materials)>1 and not ob.get('khloeCharacter'):
   bpy.ops.object.select_all(action='DESELECT');ob.select_set(True);bpy.context.view_layer.objects.active=ob;bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.separate(type='MATERIAL');bpy.ops.object.mode_set(mode='OBJECT')
 groups=defaultdict(list)
 for ob in list(bpy.context.scene.objects):
- if ob.type=='MESH' and not ob.name.startswith('FlagCloth') and ob.name!='ShipHullBoundary' and not ob.get('mastNode'):
+ if ob.type=='MESH' and not ob.get('khloeCharacter') and not ob.name.startswith('FlagCloth') and ob.name!='ShipHullBoundary' and not ob.get('mastNode'):
   # Preserve cloth grids, flexible rigging, and the vessel's actual silhouette.
   # Never merge a moving limb or ship into static island batches.
   parent_name=ob.parent.name if ob.parent else 'static'
@@ -575,7 +514,7 @@ for (parent_name,material_name),obs in groups.items():
  for ob in obs:ob.select_set(True)
  bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();ob=bpy.context.object;ob.name=name;bpy.ops.object.transform_apply(location=True,rotation=True,scale=True);ob.data.name=name+'_geometry';bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
 bpy.ops.object.select_all(action='SELECT');out=os.path.join(ROOT,'public','models','alderwick-island.glb')
-bpy.ops.export_scene.gltf(filepath=out,export_format='GLB',use_selection=True,export_yup=True,export_apply=True,export_cameras=False,export_lights=False,export_materials='EXPORT',export_extras=True)
+bpy.ops.export_scene.gltf(filepath=out,export_format='GLB',use_selection=True,export_yup=True,export_apply=False,export_animations=True,export_cameras=False,export_lights=False,export_materials='EXPORT',export_extras=True)
 print('EXPORTED',out,os.path.getsize(out),'bytes',sum(ob.type=='MESH' for ob in bpy.context.scene.objects),'meshes',flush=True)
 # Preview-only lighting and water are excluded from the shipped GLB.
 material('preview_water','668B80');cube('Preview water',(0,0,-.975),(200,200,.1),'preview_water')

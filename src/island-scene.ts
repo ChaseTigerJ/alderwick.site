@@ -64,13 +64,16 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   model.scene.traverse(object => {
     if (!(object instanceof THREE.Mesh)) return;
     object.castShadow = true; object.receiveShadow = true;
+    // Poses change the skin's bounds. She is small enough to keep renderable;
+    // picking computes fresh bounds on demand, without per-frame CPU skinning.
+    if (object instanceof THREE.SkinnedMesh) object.frustumCulled = false;
     for (const m of Array.isArray(object.material) ? object.material : [object.material]) {
       if (m instanceof THREE.MeshStandardMaterial && !seen.has(m)) {
         seen.add(m); materials.push({ material: m, base: m.color.clone(), name: m.name.toLowerCase() }); m.roughness = Math.max(m.roughness, .65);
       }
     }
   });
-  const life = createIslandLife(scene, model.scene);
+  const life = createIslandLife(scene, model.scene, model.animations);
   const atmosphere = createIslandAtmosphere(scene, model.scene);
   const flames = createIslandFlames(model.scene);
   const flags = createIslandFlags(model.scene);
@@ -204,10 +207,10 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     zoom(amount) { activity(); offset.copy(camera.position).sub(controls.target).multiplyScalar(amount).clampLength(10, 35); camera.position.copy(controls.target).add(offset); controls.update(); sceneDirty = true; },
     reset() { activity(); controls.target.set(0, .7, 0); camera.position.set(13, 13, 19).sub(controls.target).multiplyScalar(viewScale).add(controls.target); controls.update(); sceneDirty = true; },
     dispose() {
-      disposed = true; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); removeInteractions(); bellChime.dispose(); removeControls(); reflection.dispose();
-      const geometries = new Set<THREE.BufferGeometry>(), disposableMaterials = new Set<THREE.Material>();
-      scene.traverse(obj => { if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) { geometries.add(obj.geometry); for (const material of Array.isArray(obj.material) ? obj.material : [obj.material]) disposableMaterials.add(material); } });
-      geometries.forEach(geometry => geometry.dispose()); disposableMaterials.forEach(material => material.dispose()); lighting.dispose(); renderer.dispose(); canvas.remove();
+      disposed = true; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); removeInteractions(); bellChime.dispose(); removeControls(); reflection.dispose(); life.dispose();
+      const geometries = new Set<THREE.BufferGeometry>(), disposableMaterials = new Set<THREE.Material>(), skeletons = new Set<THREE.Skeleton>();
+      scene.traverse(obj => { if (obj instanceof THREE.SkinnedMesh) skeletons.add(obj.skeleton); if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) { geometries.add(obj.geometry); for (const material of Array.isArray(obj.material) ? obj.material : [obj.material]) disposableMaterials.add(material); } });
+      skeletons.forEach(skeleton => skeleton.dispose()); geometries.forEach(geometry => geometry.dispose()); disposableMaterials.forEach(material => material.dispose()); lighting.dispose(); renderer.dispose(); canvas.remove();
     },
   };
 }

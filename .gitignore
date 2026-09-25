@@ -5,3 +5,5 @@ dist/
 .sites-runtime/
 .env*
 test-results/
+__pycache__/
+*.pyc
