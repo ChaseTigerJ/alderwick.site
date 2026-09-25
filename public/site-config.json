@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "download": {
+    "enabled": true,
+    "comingSoonText": "Your next adventure is on its way. Come back soon!"
+  },
+  "stores": {
+    "ios": { "enabled": false, "url": "" },
+    "android": { "enabled": false, "url": "" },
+    "comingSoonText": "A little world, soon in your pocket. Alderwick for phones and tablets is coming soon."
+  },
+  "world": {
+    "theme": "system",
+    "season": "current",
+    "hemisphere": "north"
+  }
+}

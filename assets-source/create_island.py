@@ -17,6 +17,15 @@ def material(name,h,emit=0):
  M[name]=m;return m
 for n,h in {'grass_ground':'788B57','grass_tufts':'8C9F67','sand':'C6B68B','cliff':'8D7560','cliff_light':'A8957C','cliff_dark':'75665C','wood':'574536','wood_light':'9E7D52','plaster':'E7D6AE','plaster_alt':'C8B88E','roof':'B66147','roof_light':'C77852','roof_green':'344F47','roof_green_light':'4C6A57','stone':'9C9A88','leaf_gold':'C9903D','leaf_orange':'B76C36','leaf_light':'D8AB55','leaf_green':'728148','leaf_pine':'365B48','leaf_pine_light':'50735A','canvas':'F3E1B7','iron':'424A40','berry':'954D46','pumpkin':'D38138','dog':'B69665','pink':'D394AC'}.items():material(n,h)
 material('window_glow','FFE2A0',.3)
+# Dedicated dog colors prevent seasonal vegetation changes from recoloring Khloe.
+for name,color in {'shepherd_tan':'B58B56','shepherd_gold':'CBA56F','shepherd_cream':'D9BC8A','shepherd_sable':'554536','shepherd_black':'292A25','shepherd_nose':'202421','shepherd_eye':'120F0C','shepherd_inner_ear':'785F52','shepherd_pink':'D793AD'}.items():material(name,color)
+def empty(name,position=(0,0,0)):
+ ob=bpy.data.objects.new(name,None);bpy.context.collection.objects.link(ob);ob.location=position;ob.empty_display_type='PLAIN_AXES';ob.empty_display_size=.12;return ob
+def parent_preserving_world(ob,parent):
+ matrix=ob.matrix_world.copy();ob.parent=parent;ob.matrix_world=matrix
+anchor_counts=defaultdict(int)
+def anchor(prefix,position):
+ index=anchor_counts[prefix];anchor_counts[prefix]+=1;return empty(prefix+'_'+str(index),position)
 def mesh(n,v,f,m):
  me=bpy.data.meshes.new(n);me.from_pydata(v,[],f);me.update();o=bpy.data.objects.new(n,me);bpy.context.collection.objects.link(o);o.data.materials.append(M[m]);return o
 def cube(n,p,s,m,bevel=0):
@@ -60,6 +69,8 @@ path('Harbor lane',[(.65,-4),(.45,-3),(-.1,-2.1),(-.3,-1.1),(.3,-.1),(.4,1.2),(.
 path('Village lane',[(-4,-.5),(-2.8,-.7),(-1.6,-1.15),(-.3,-1.1),(1.3,-1.1),(2.8,-.6),(3.7,.3)],.53)
 path('Garden lane',[(-2.8,-.7),(-3,-1.6),(-3.3,-2.2)],.4)
 def window(x,y,z,w=.32,h=.39,side=False):
+ # Put the emitter outside the pane so it can light the wall and path.
+ anchor('WindowLight',(x+.28,y,z-.04) if side else (x,y-.28,z-.04))
  if not side:
   cube('Window oak frame',(x,y,z),(w+.085,.055,h+.085),'wood');cube('Warm windowpane',(x,y-.035,z),(w,.035,h),'window_glow');cube('Window mullion',(x,y-.06,z),(.035,.025,h),'wood');cube('Window transom',(x,y-.06,z+.015),(w,.025,.035),'wood');cube('Deep window sill',(x,y-.095,z-h/2-.02),(w+.13,.18,.05),'wood_light')
  else:
@@ -87,6 +98,7 @@ def cottage(name,x,y,w=1.7,d=1.8,h=1.25,rot=0,green=False,hall=False):
   cube('Herb box',(xx,-d/2-.17,.48),(.41,.17,.11),'wood_light')
   for dd in [-.12,0,.12]:ico('Window herbs',(xx+dd,-d/2-.17,.59),(.1,.09,.09),'leaf_green')
  cube('Chimney',(-w*.25,d*.24,apex-.04),(.26,.3,.8),'plaster_alt',.025);cube('Chimney cap',(-w*.25,d*.24,apex+.37),(.34,.37,.095),'stone');cube('Chimney soot',(-w*.25,d*.24,apex+.42),(.18,.2,.005),'iron')
+ anchor('ChimneySmoke',(-w*.25,d*.24,apex+.435))
  if hall:
   tz=apex+.08;cube('Cupola base',(0,.3,tz+.11),(.59,.57,.18),'plaster')
   for xx in [-.23,.23]:
@@ -94,7 +106,8 @@ def cottage(name,x,y,w=1.7,d=1.8,h=1.25,rot=0,green=False,hall=False):
   cone('Bronze bell',(0,.3,tz+.43),.15,.06,.24,'leaf_gold');cone('Cupola roof',(0,.3,tz+.86),.49,0,.5,'roof_green',4).rotation_euler.z=math.pi/4;beam('Weathervane',(0,.3,tz+1.08),(0,.3,tz+1.42),.018,'iron');beam('Vane arrow',(-.21,.3,tz+1.33),(.23,.3,tz+1.33),.018,'iron')
   cube('Tavern sign bracket',(w/2+.22,-d/2-.16,1.1),(.45,.075,.065),'wood');cube('Tavern sign',(w/2+.34,-d/2-.16,.87),(.25,.07,.26),'roof_green',.02);ico('Sign golden leaf',(w/2+.34,-d/2-.21,.87),(.07,.02,.09),'leaf_gold')
  objs=set(bpy.data.objects)-start;transform(objs,x,y,rot=rot)
- for ob in objs:ob.name=name+' | '+ob.name
+ for ob in objs:
+  if ob.type!='EMPTY':ob.name=name+' | '+ob.name
 cottage('Alder and Anchor',.65,1.18,2.05,2.05,1.52,-.06,hall=True)
 cottage('Fisher cottage',-2.4,.65,1.55,1.62,1.14,.17,green=True)
 cottage('Harbor workshop',2.9,.85,1.42,1.6,1.07,-.25)
@@ -171,20 +184,94 @@ for yy,top,w in [(-.48,2.45,1.25),(.45,2.8,1.4)]:
  beam('Tall mast',(0,yy,.32),(0,yy,top+.3),.035,'wood_light');sail(yy,.94,w,.82,.21);sail(yy,1.84,w*.7,.55,.12)
  for side in [-1,1]:beam('Ship rigging',(side*.4,yy-.4,.43),(0,yy,top+.1),.011,'wood',4);beam('Ship rigging',(side*.4,yy+.42,.43),(0,yy,top+.1),.009,'wood',4)
  mesh('Ship pennant',[(0,yy,top+.3),(.38,yy,top+.25),(0,yy,top+.13)],[(0,1,2)],'berry')
-mesh('Triangular foresail',[(0,-1.64,.88),(0,-.5,2.49),(0,-.48,1.02)],[(0,1,2)],'canvas');beam('Forestay',(0,-1.81,.85),(0,-.48,2.74),.01,'wood',4);transform(set(bpy.data.objects)-start,2.9,-4.62,-.88,-.35)
-dx,dy=-.74,-1.65
-ico('Shepherd body',(dx,dy,.22),(.14,.3,.19),'dog',2);ico('Shepherd saddle',(dx,dy+.045,.32),(.145,.19,.12),'wood');ico('Shepherd head',(dx,dy-.27,.43),(.13,.12,.15),'dog');ico('Shepherd muzzle',(dx,dy-.37,.38),(.085,.13,.07),'wood')
-for x in [dx-.078,dx+.078]:
- cone('Shepherd ears',(x,dy-.24,.61),.055,0,.19,'wood',4)
- for y in [dy-.17,dy+.2]:beam('Shepherd legs',(x,y,.03),(x,y,.2),.035,'dog',5)
-cube('Shepherd pink collar',(dx,dy-.22,.32),(.24,.055,.075),'pink');beam('Shepherd tail',(dx,dy+.21,.3),(dx+.12,dy+.48,.39),.045,'wood')
-for xx in [dx-.058,dx+.058]:ico('Shepherd eyes',(xx,dy-.364,.46),(.016,.012,.016),'iron')
+mesh('Triangular foresail',[(0,-1.64,.88),(0,-.5,2.49),(0,-.48,1.02)],[(0,1,2)],'canvas');beam('Forestay',(0,-1.81,.85),(0,-.48,2.74),.01,'wood',4)
+ship_objects=set(bpy.data.objects)-start
+ship=empty('MerchantShip',(2.9,-4.62,-.88));ship.rotation_euler.z=-.35
+# The authored hull uses a waterline origin. Parenting before moving the group
+# preserves that pivot for bobbing and rocking in the browser.
+ship.location=(0,0,0);ship.rotation_euler.z=0;bpy.context.view_layer.update()
+for ob in ship_objects:parent_preserving_world(ob,ship)
+ship.location=(2.9,-4.62,-.88);ship.rotation_euler.z=-.35
+
+# Khloe: an articulated, flat-shaded German Shepherd. Nose points along -Y.
+# The feet stand on Z=0; joint empties are the runtime animation contract.
+khloe=empty('Khloe')
+def joint(name,position):
+ ob=empty(name,position);bpy.context.view_layer.update();parent_preserving_world(ob,khloe);return ob
+def bind(part,objects):
+ bpy.context.view_layer.update()
+ for ob in objects:parent_preserving_world(ob,part)
+def build_part(part,builder):
+ before=set(bpy.data.objects);builder();bind(part,set(bpy.data.objects)-before)
+body=joint('KhloeBody',(0,0,.39))
+def dog_body():
+ # Slightly sloping topline, deep chest, tucked waist, and haunches.
+ ico('Khloe tan ribcage',(0,-.02,.38),(.145,.32,.175),'shepherd_tan',2)
+ ico('Khloe golden chest',(0,-.225,.37),(.145,.135,.18),'shepherd_gold',2)
+ ico('Khloe black saddle',(0,.045,.47),(.146,.265,.1),'shepherd_black',2)
+ ico('Khloe sable flank left',(-.127,.085,.37),(.037,.21,.113),'shepherd_sable',1)
+ ico('Khloe sable flank right',(.127,.085,.37),(.037,.21,.113),'shepherd_sable',1)
+ ico('Khloe cream brisket',(0,-.286,.325),(.097,.04,.125),'shepherd_cream',1)
+ for sign in [-1,1]:ico('Khloe hind haunch',(sign*.11,.22,.33),(.075,.105,.135),'shepherd_tan',2)
+build_part(body,dog_body)
+head=joint('KhloeHead',(0,-.23,.41))
+def dog_head():
+ # Upright neck, long wedge muzzle, strong brow, and very tall erect ears.
+ neck=ico('Khloe neck',(0,-.275,.49),(.111,.14,.19),'shepherd_gold',2);neck.rotation_euler.x=.32
+ ico('Khloe neck sable ruff',(0,-.206,.51),(.12,.071,.16),'shepherd_sable',1)
+ ico('Khloe cheek left',(-.07,-.367,.575),(.061,.11,.083),'shepherd_gold',1)
+ ico('Khloe cheek right',(.07,-.367,.575),(.061,.11,.083),'shepherd_gold',1)
+ ico('Khloe head wedge',(0,-.386,.604),(.103,.141,.113),'shepherd_sable',2)
+ ico('Khloe tan forehead',(0,-.378,.669),(.076,.103,.059),'shepherd_tan',1)
+ muzzle=ico('Khloe long black muzzle',(0,-.511,.56),(.07,.131,.058),'shepherd_black',1);muzzle.rotation_euler.x=-.075
+ ico('Khloe lower jaw',(0,-.5,.533),(.056,.112,.022),'shepherd_tan',1)
+ ico('Khloe black nose',(0,-.619,.566),(.055,.036,.04),'shepherd_nose',1)
+ for sign in [-1,1]:
+  # Thin triangular ears, with ear opening toward her nose. Outer tips splay subtly.
+  bx=sign*.066
+  mesh('Khloe upright pointed ear',[(bx-.044,-.359,.676),(bx+.044,-.359,.676),(bx+sign*.022,-.324,.815),(bx-.035,-.305,.671),(bx+.035,-.305,.671)],[(0,1,2),(2,4,3),(0,2,3),(1,4,2),(0,3,4,1)],'shepherd_black')
+  mesh('Khloe warm ear inset',[(bx-.029,-.363,.69),(bx+.029,-.363,.69),(bx+sign*.017,-.334,.784)],[(0,1,2)],'shepherd_inner_ear')
+  eye=ico('Khloe dark almond eye',(sign*.082,-.456,.626),(.018,.016,.017),'shepherd_eye',1)
+  ico('Khloe eye glint',(sign*.085,-.468,.633),(.004,.004,.004),'shepherd_cream',1)
+  brow=ico('Khloe golden eyebrow',(sign*.07,-.447,.654),(.034,.028,.016),'shepherd_gold',1);brow.rotation_euler.y=sign*.17
+ # A bright continuous collar and a small brass tag read clearly at hero scale.
+ collar=cone('Khloe pink collar',(0,-.288,.466),.119,.119,.055,'shepherd_pink',10);collar.rotation_euler.x=.34
+ ico('Khloe brass collar tag',(0,-.409,.444),(.025,.012,.031),'leaf_light',1)
+build_part(head,dog_head)
+# The whole leg turns at its shoulder or hip. The hind-leg silhouette includes
+# the breed's characteristic bent stifle and low rear hock.
+for side,sign in [('L',-1),('R',1)]:
+ for placement,yy in [('F',-.21),('B',.21)]:
+  xx=sign*.107;pivot_z=.375 if placement=='F' else .36
+  leg=joint('KhloeLeg'+placement+side,(xx,yy,pivot_z))
+  before=set(bpy.data.objects)
+  if placement=='F':
+   beam('Khloe front upper leg',(xx,yy,.375),(xx,yy+.015,.205),.039,'shepherd_tan',6)
+   beam('Khloe front lower leg',(xx,yy+.015,.205),(xx,yy-.002,.045),.029,'shepherd_gold',6)
+   ico('Khloe front paw',(xx,yy-.03,.032),(.049,.077,.032),'shepherd_gold',1)
+  else:
+   beam('Khloe hind thigh',(xx,yy,.36),(xx,yy-.065,.203),.051,'shepherd_tan',6)
+   beam('Khloe hind hock',(xx,yy-.065,.203),(xx,yy+.07,.106),.032,'shepherd_gold',6)
+   beam('Khloe hind pastern',(xx,yy+.07,.106),(xx,yy+.05,.04),.026,'shepherd_gold',6)
+   ico('Khloe hind paw',(xx,yy+.016,.03),(.046,.074,.03),'shepherd_gold',1)
+  bind(leg,set(bpy.data.objects)-before)
+tail=joint('KhloeTail',(0,.268,.415))
+def dog_tail():
+ # Heavy feathered tail curves downward at rest instead of curling like a husky.
+ beam('Khloe tail upper',(0,.265,.416),(.045,.395,.334),.068,'shepherd_sable',7)
+ beam('Khloe tail middle',(.045,.395,.334),(.088,.529,.222),.065,'shepherd_sable',7)
+ beam('Khloe tail lower',(.088,.529,.222),(.105,.644,.167),.046,'shepherd_black',7)
+ beam('Khloe tail tip',(.105,.644,.167),(.095,.71,.19),.027,'shepherd_black',6)
+build_part(tail,dog_tail)
+khloe.location=(-.74,-1.65,0);khloe.scale=(.86,.86,.86)
 for x,y in [(-1.15,-.66),(1.38,-2.58)]:
+ anchor('LanternLight',(x,y,1.02))
  beam('Lantern post',(x,y,0),(x,y,1.03),.043,'wood_light');cube('Lantern light',(x,y,1.02),(.14,.14,.2),'window_glow');cone('Lantern cap',(x,y,1.17),.135,0,.12,'iron',4).rotation_euler.z=math.pi/4;cube('Lantern foot',(x,y,.9),(.17,.17,.05),'iron')
 cube('Village bench',(-1.35,.08,.36),(.72,.25,.075),'wood_light',.012);cube('Bench back',(-1.35,.18,.58),(.72,.05,.24),'wood_light',.012)
 for x in [-1.61,-1.09]:cube('Bench leg',(x,.08,.19),(.06,.16,.34),'wood')
 for j in range(5):beam('Firewood',(2.42+j%3*.11,.23,.09+(j//3)*.1),(2.42+j%3*.11,.61,.09+(j//3)*.1),.06,'wood_light',7)
 beam('Flagpole',(-.15,-3.6,0),(-.15,-3.6,1.42),.025,'wood_light');mesh('Harbor pennant',[(-.14,-3.6,1.4),(.43,-3.61,1.29),(-.14,-3.6,1.12)],[(0,1,2)],'berry')
+empty('PipLetterAnchor',(-.44,-2.45,.85))
 # Source remains independently editable; the shipping file uses material batches.
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT,'assets-source','alderwick-island.blend'))
 for ob in list(bpy.context.scene.objects):
@@ -192,8 +279,12 @@ for ob in list(bpy.context.scene.objects):
   bpy.ops.object.select_all(action='DESELECT');ob.select_set(True);bpy.context.view_layer.objects.active=ob;bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.separate(type='MATERIAL');bpy.ops.object.mode_set(mode='OBJECT')
 groups=defaultdict(list)
 for ob in list(bpy.context.scene.objects):
- if ob.type=='MESH':groups[ob.data.materials[0].name].append(ob)
-for name,obs in groups.items():
+ if ob.type=='MESH':
+  # Never merge a moving limb or ship into static island batches.
+  parent_name=ob.parent.name if ob.parent else 'static'
+  groups[(parent_name,ob.data.materials[0].name)].append(ob)
+for (parent_name,material_name),obs in groups.items():
+ name=material_name if parent_name=='static' else parent_name+'__'+material_name
  bpy.ops.object.select_all(action='DESELECT')
  for ob in obs:ob.select_set(True)
  bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();ob=bpy.context.object;ob.name=name;bpy.ops.object.transform_apply(location=True,rotation=True,scale=True);ob.data.name=name+'_geometry';bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')

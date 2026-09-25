@@ -14,11 +14,13 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
+`node --test tests/*.test.ts` checks configuration and live GLB animation contracts.
+
 `pnpm build` checks TypeScript and produces `dist/`. `pnpm preview` serves the production build. Dependencies and fonts are self-hosted in the build.
 
 ## The world
 
-Drag to orbit. The small view buttons support keyboard rotation and zoom. Switch day/night, change seasons, pause the scene, or discover the three glimmers. Reduced-motion settings disable autonomous movement; the world stops rendering while outside the viewport. On WebGL failure the Blender render remains available.
+Drag to orbit and scroll to zoom on desktop; use two fingers to orbit/pinch on touchscreens while one finger scrolls the page. Keyboard arrows, plus/minus, and Home offer the same view controls. The discreet desktop World mood menu previews day/night and seasons. Khloé roams the clearing, leaves fading pawprints in snow, and performs a play bow and happy hops when clicked. Pip’s letter unfolds in flight; the ship rocks when its supplies marker is clicked. Chimney smoke and flickering flame lights use exported Blender anchors. Reduced-motion settings disable autonomous movement; the world stops rendering while outside the viewport. On WebGL failure the Blender render remains available.
 
 The game download lives in `public/downloads/`. `release.json` supplies the visible version, size, filename and setup requirements. This is a **portable browser edition**, not a signed native macOS/Windows installer. It runs the actual compiled Alderwick game on a local-only server and keeps saves in the browser.
 
@@ -27,6 +29,8 @@ The game download lives in `public/downloads/`. `release.json` supplies the visi
 Every push to `main` builds and deploys using `.github/workflows/pages.yml`. **Settings → Pages → Source → GitHub Actions** is configured. Enable HTTPS after the custom-domain DNS check and certificate issuance complete. Build output uses relative paths, supporting both the GitHub project URL and a custom domain.
 
 The website source and Blender authoring script are committed here. The original game’s private source history remains in its Sites repository. Only its compiled playable build is distributed in the download.
+
+Edit [`public/site-config.json`](public/site-config.json) to enable or disable desktop downloads, set store links, and choose automatic world defaults. Read the [administration guide](docs/CONFIG.md). Phones and tablets show store availability instead of the desktop ZIP.
 
 See [domain setup](docs/DOMAIN.md), [design notes](docs/DESIGN.md), and [asset credits](docs/CREDITS.md).
 
