@@ -2,7 +2,7 @@
 
 A playful website for Alderwick, built with React, TypeScript, Three.js and an original Blender harbor diorama. Static output runs on GitHub Pages without a paid server.
 
-Live website: [Alderwick](https://www.chasetiger.com/alderwick-site/). The intended custom domain is `playalderwick.com`; purchase and DNS connection are still pending. The temporary URL inherits this GitHub account’s existing Pages domain.
+Custom domain: [www.playalderwick.com](https://www.playalderwick.com/). GitHub Pages is configured to use this domain. See [domain setup](docs/DOMAIN.md) for DNS and HTTPS validation. Repository: `ChaseTigerJ/alderwick.site`.
 
 ## Develop
 
@@ -24,7 +24,7 @@ The game download lives in `public/downloads/`. `release.json` supplies the visi
 
 ## Publishing
 
-Every push to `main` builds and deploys using `.github/workflows/pages.yml`. **Settings → Pages → Source → GitHub Actions** is configured, and HTTPS is enforced. Build output uses relative paths, supporting both the GitHub project URL and a custom domain.
+Every push to `main` builds and deploys using `.github/workflows/pages.yml`. **Settings → Pages → Source → GitHub Actions** is configured. Enable HTTPS after the custom-domain DNS check and certificate issuance complete. Build output uses relative paths, supporting both the GitHub project URL and a custom domain.
 
 The website source and Blender authoring script are committed here. The original game’s private source history remains in its Sites repository. Only its compiled playable build is distributed in the download.
 
@@ -40,4 +40,4 @@ See [domain setup](docs/DOMAIN.md), [design notes](docs/DESIGN.md), and [asset c
 
 ## Hosting costs
 
-This repository must be public to use GitHub Pages with GitHub Free. The planned domain purchase and renewal are billed separately by Squarespace. Very large game builds should move to GitHub Releases, with the release URL updated in the manifest.
+This repository must be public to use GitHub Pages with GitHub Free. Domain registration and renewal are billed separately by Squarespace. Very large game builds should move to GitHub Releases, with the release URL updated in the manifest.

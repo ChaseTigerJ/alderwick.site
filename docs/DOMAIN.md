@@ -1,12 +1,12 @@
-# Connect playalderwick.com
+# Connect www.playalderwick.com
 
-Repository: `ChaseTigerJ/alderwick-site`.
+Repository: `ChaseTigerJ/alderwick.site`.
 
-The site is live at [www.chasetiger.com/alderwick-site](https://www.chasetiger.com/alderwick-site/), inherited from the account’s existing GitHub Pages domain. GitHub Actions hosting and HTTPS are already enabled. `playalderwick.com` is the intended domain; its purchase and DNS connection remain pending.
+GitHub Pages uses **GitHub Actions**, with **Custom domain** set to `www.playalderwick.com`. The repository name does not determine the DNS destination. A CNAME value is a hostname, not a repository name or URL.
 
-1. Open this repository’s **Settings → Pages**. Keep **GitHub Actions** as the source.
-2. Once the domain has been purchased, set **Custom domain** to `playalderwick.com` and save. GitHub recommends verifying domain ownership in account Pages settings first.
-3. In Squarespace's DNS settings, replace only conflicting web-hosting records for `@` and `www`. Keep mail and other service records.
+## Squarespace DNS
+
+Use these records:
 
 | Host | Type | Value |
 | --- | --- | --- |
@@ -16,9 +16,17 @@ The site is live at [www.chasetiger.com/alderwick-site](https://www.chasetiger.c
 | @ | A | 185.199.111.153 |
 | www | CNAME | chasetigerj.github.io |
 
-4. Wait for DNS validation and the certificate, then enable **Enforce HTTPS** in GitHub Pages. DNS propagation can take up to 24 hours.
-5. Check both `https://playalderwick.com` and `https://www.playalderwick.com`. GitHub redirects the secondary host to the configured primary domain.
+The `www` CNAME must point directly to `chasetigerj.github.io`, **without a repository name, path, or `https://` prefix**. Do not use `alderwick.site`: DNS treats that as a separate domain, regardless of this repository’s name.
 
-The `www` CNAME points to the GitHub account hostname, **without** `/alderwick-site`. Set the custom domain in GitHub before changing DNS. A CNAME file alone is not effective for an Actions deployment; the repository Pages setting is required.
+Replace only conflicting web-hosting records for `@` and `www`. Keep mail and other service records. Set the custom domain in GitHub before changing DNS.
 
-Reference: [GitHub’s current custom-domain documentation](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site).
+## Validate and enable HTTPS
+
+1. Save the DNS records in Squarespace. Cached DNS records may take up to 24 hours to update.
+2. In this repository’s **Settings → Pages**, use **Check again** if shown and wait for successful DNS validation.
+3. Wait for GitHub to issue the certificate, then enable **Enforce HTTPS** when available. GitHub may initially show an `http://` address while HTTPS is unavailable; “Your site is live” does not prove the DNS records are correct.
+4. Check `https://www.playalderwick.com/` and `https://playalderwick.com/`. With both record sets configured, GitHub redirects the apex domain to the configured `www` primary domain.
+
+A CNAME file is not required for this Actions deployment; the repository Pages setting controls the custom domain. Renaming the repository is not required for Squarespace or a custom CNAME. GitHub also recommends verifying domain ownership in account Pages settings.
+
+Reference: [GitHub’s custom-domain documentation](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site).
