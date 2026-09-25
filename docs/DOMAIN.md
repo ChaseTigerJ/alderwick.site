@@ -2,7 +2,9 @@
 
 Repository: `ChaseTigerJ/alderwick-site`.
 
-1. In GitHub repository **Settings → Pages**, select **GitHub Actions** as the source.
+The site is live at [www.chasetiger.com/alderwick-site](https://www.chasetiger.com/alderwick-site/), inherited from the account’s existing GitHub Pages domain. GitHub Actions hosting and HTTPS are already enabled. `playalderwick.com` is the intended domain; its purchase and DNS connection remain pending.
+
+1. Open this repository’s **Settings → Pages**. Keep **GitHub Actions** as the source.
 2. Once the domain has been purchased, set **Custom domain** to `playalderwick.com` and save. GitHub recommends verifying domain ownership in account Pages settings first.
 3. In Squarespace's DNS settings, replace only conflicting web-hosting records for `@` and `www`. Keep mail and other service records.
 

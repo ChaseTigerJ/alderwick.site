@@ -1,5 +1,8 @@
 # Verification record
 
+Initial GitHub Actions build and Pages deployment succeeded at commit `95ad71cbd3c5fe89beb22c31a248a18ce2507b23`. The public page is served over HTTPS at `https://www.chasetiger.com/alderwick-site/`.
+
+- Live deployment: rendered 3D scene and desktop layout inspected, no console warnings/errors; actual hosted ZIP download event verified.
 - Website TypeScript check and Vite production build: passed.
 - Desktop 1440×900 and small-laptop 1280×720: layout and rendered WebGL scene inspected.
 - Mobile 390×844: three-line headline, navigation toggle, download control and scene inspected; no horizontal document overflow.
