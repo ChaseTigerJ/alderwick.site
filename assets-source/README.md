@@ -126,3 +126,7 @@ The four shrouds per mast run entirely aft of the billowed square sails. Their u
 | `ShipForesail` | `ShipMast_0` | 0.85 | 2.74 |
 
 Tree and mast sway should stay much smaller than the existing ship rocking: the browser runtime caps combined rotation at roughly 0.9° for trees and 0.4° for masts. The animation clock remains frozen when reduced motion or the administrator’s animation setting disables motion.
+
+## Khloé’s 404 portrait
+
+`create_khloe_404.py` reads the original island `.blend` and isolates Khloé in a seated pose, with grounded front paws, folded hind legs, her original collar/face, and a 16-degree head tilt. It leaves the island source and shipping GLB unchanged. Run Blender in the repository root with `--background --python assets-source/create_khloe_404.py`, then run the Pillow WebP command in the script header. The shipping `public/images/khloe-404.webp` is 1000×1100 RGBA and 38,222 bytes, with fully transparent borders. The page supplies the soft contact shadow.

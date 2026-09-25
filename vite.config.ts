@@ -11,5 +11,8 @@ const modelVersion = createHash('sha256')
 export default defineConfig({
   base: './',
   define: { __ISLAND_MODEL_VERSION__: JSON.stringify(modelVersion) },
-  build: { target: 'es2022', chunkSizeWarningLimit: 650 },
+  build: {
+    target: 'es2022', chunkSizeWarningLimit: 650,
+    rollupOptions: { input: { main: 'index.html', notFound: '404.html' } },
+  },
 });

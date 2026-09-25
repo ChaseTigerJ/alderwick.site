@@ -51,3 +51,7 @@ This repository must be public to use GitHub Pages with GitHub Free. Domain regi
 The browser favicon and iOS Home Screen icon use the original game’s gold house-and-flag artwork, copied exactly from the included game package. See [icon provenance](docs/ICONS.md).
 
 The build adds a content hash to the Blender model URL so returning visitors receive geometry changes alongside the corresponding animation code.
+
+## Missing pages
+
+GitHub Pages serves the standalone `404.html` for missing URLs. It features a Blender portrait of Khloé, a direct home link, and a five-second automatic return to `/`. The countdown starts before artwork and fonts load. A root document base keeps assets working from nested missing paths; the page does not load React, Three.js, the island, or site configuration. It follows the computer’s light/dark appearance and reduced-motion preference.
