@@ -27,7 +27,8 @@ export function createIslandEasterEggs(scene: THREE.Scene, model: THREE.Object3D
   const ghostEyes = new THREE.MeshBasicMaterial({ color: 0x293c38, transparent: true, opacity: 0, depthWrite: false });
   const handClay = new THREE.MeshStandardMaterial({ color: 0x98a28c, roughness: .95, flatShading: true });
 
-  // A narrow swept dorsal fin, with the rest of the shark safely under the sea.
+  // The convex leading edge faces local -X; the concave trailing edge sweeps +X.
+  // Keep that leading edge aligned with the swim tangent, unlike the +X-facing fish.
   const finProfile = new THREE.Shape(); finProfile.moveTo(-.25, -.07); finProfile.lineTo(.28, -.07); finProfile.quadraticCurveTo(.035, .09, .07, .44); finProfile.quadraticCurveTo(-.04, .38, -.25, -.07);
   const finGeometry = new THREE.ExtrudeGeometry(finProfile, { depth: .045, bevelEnabled: false, curveSegments: 5 }); finGeometry.translate(0, 0, -.0225);
   mesh(shark, 'SharkDorsalFin', finGeometry, seaDark);
@@ -111,8 +112,8 @@ export function createIslandEasterEggs(scene: THREE.Scene, model: THREE.Object3D
       const p = elapsed / EASTER_EGG_DURATIONS.shark, a = THREE.MathUtils.lerp(startAngle, endAngle, p);
       const emerge = smooth(elapsed / 1.2) * smooth((EASTER_EGG_DURATIONS.shark - elapsed) / 1.4);
       shark.position.set(Math.cos(a) * radius, WATER_Y - .47 * (1 - emerge), Math.sin(a) * radius);
-      shark.rotation.y = -a - Math.PI / 2;
-      wake.visible = emerge > .2; wake.position.set(shark.position.x, WATER_Y + .012, shark.position.z); wake.rotation.y = -a; wake.scale.set(.75 + emerge * .4, 1, 1.4);
+      shark.rotation.y = -a + Math.PI / 2;
+      wake.visible = emerge > .2; wake.position.set(shark.position.x + Math.sin(a) * .16, WATER_Y + .012, shark.position.z - Math.cos(a) * .16); wake.rotation.y = -a; wake.scale.set(.75 + emerge * .4, 1, 1.4);
     } else if (active === 'fish') {
       const flight = 2.1, p = THREE.MathUtils.clamp(elapsed / flight, 0, 1), a = THREE.MathUtils.lerp(startAngle, endAngle, p);
       fish.visible = elapsed < flight;

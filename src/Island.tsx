@@ -32,7 +32,7 @@ export default function Island(props: Props) {
       else return;
       event.preventDefault();
     }} />
-    <p className="sr-only" id="island-keyboard-help">Use left and right arrow keys to rotate, plus and minus to zoom, and Home to reset the view. On a mouse, drag to rotate and scroll to zoom. On touchscreens, use two fingers to explore or pinch to zoom; one finger scrolls the page.{props.worldSettings.discoveriesEnabled && ` Click objects in the world to discover their stories, or press Tab to reach the ${discoveries.length} discovery buttons.`}</p>
+    <p className="sr-only" id="island-keyboard-help">Use left and right arrow keys to rotate, plus and minus to zoom, and Home to reset the view. On a mouse, drag to rotate and scroll to zoom. On touchscreens, drag with one finger to rotate, pinch with two fingers to zoom, and swipe outside the world to scroll the page.{props.worldSettings.discoveriesEnabled && ` Click or tap objects in the world to discover their stories, or press Tab to reach the ${discoveries.length} discovery buttons.`}</p>
     {status === 'loading' && <div className="scene-loading" role="status"><span className="loading-line" />A little world is waking up…</div>}
     {status === 'error' && <div className="scene-fallback"><img src={`${import.meta.env.BASE_URL}island-poster.webp`} alt="Alderwick’s miniature coastal settlement" /><p>The harbor looks lovely from here. Try a browser with WebGL to explore in 3D.</p></div>}
     {status === 'ready' && props.worldSettings.discoveriesEnabled && <div className="keyboard-discoveries" role="group" aria-label="Island discoveries" onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); host.current?.focus(); } }}>

@@ -74,3 +74,13 @@ Physical device touch/pinch QA remains outside these desktop browser checks. The
 - TypeScript and Vite pass. The lazy Three.js scene chunk is approximately 694 kB before gzip; its existing size warning remains informational. New administrative settings control candle brightness and rare-visitor frequency/availability.
 
 Physical mobile gesture testing is not included in the desktop viewport check. The game archive and DNS settings are unchanged.
+
+
+## Touch controls, idle harbor, and announcements
+
+- All 61 focused Node tests pass, and TypeScript plus the Vite production build pass. The new fin test checks its actual leading edge against the travel vector along the whole curved pass, and confirms its wake stays behind.
+- Production OrbitControls receives real pointer-event fixtures in Node: a single finger rotates the camera, a two-finger spread zooms, neither a drag nor pinch generates a discovery, and the next ordinary tap can raycast the mailbox. Outside releases, cancellation, blur, and touch snow impulses are covered.
+- Idle drift eases up to half a degree per second after three seconds without interaction. Tests cover held pointers/keys, repeated wheel input, gradual return to the original viewing elevation, pause/reduced motion/disabled animation, and hidden-tab resumption without a camera jump. Zoom remains independent of idle motion.
+- The announcement letter was inspected at 1440×900 and 390×844, and its banner variant at 320×740. No horizontal overflow was found. Escape and the return button dismiss the letter and restore page scrolling; the optional banner link reaches the island, and session dismissal survives reload. The production default is disabled.
+- Config tests cover announcement defaults, optional modes and links, custom colors, image URLs, readable contrast, invalid configuration isolation, and dismissal identifiers. Desktop and both store availability flags remain false.
+- Desktop and mobile announcement screenshots were saved as review artifacts. The existing Three.js chunk-size warning and dependency directive notices remain informational. Physical iOS/Android gesture testing is not included in the Node fixtures or desktop viewport checks.

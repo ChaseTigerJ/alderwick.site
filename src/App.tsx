@@ -5,6 +5,7 @@ import Island, { type Season } from './Island';
 import { AdventureButton, AvailabilityDialog, StoreButtons, type AvailabilityKind } from './Availability';
 import { useSiteSettings } from './use-site-settings';
 import { discoveries } from './discoveries';
+import Announcement from './Announcement';
 
 const chapters = [
   { number: '01', title: 'Find your shore.', text: 'Step off the ship and into the unknown. Start small, gather what you need, and give your first settlers a place to call home.', detail: 'From the first camp to a bustling harbor.', season: 'autumn' as Season },
@@ -33,6 +34,7 @@ export default function App() {
   const adventureCta = mobile ? <StoreButtons config={config} onComingSoon={openAvailability} /> : <AdventureButton onClick={() => openAvailability()} available={downloadAvailable} />;
   const enter = reduced ? {} : { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { duration: .75 } };
   return <>
+    <Announcement config={config?.announcement} />
     {season === 'winter' && worldSettings.effectsEnabled && !reduced && <div className={`page-snow${worldPaused ? ' is-paused' : ''}`} data-night={night} aria-hidden="true">{Array.from({ length: Math.round((mobile ? 18 : 26) * worldSettings.snowAmount) }, (_, index) => <i key={index} style={{ '--snow-left': `${(index * 47 + 9) % 101}%`, '--snow-size': `${2 + index % 4}px`, '--snow-time': `${15 + (index * 7) % 18}s`, '--snow-delay': `${-((index * 13) % 35)}s`, '--snow-drift': `${((index * 29) % 130) - 65}px`, '--snow-opacity': `${.25 + (index % 4) * .12}` } as React.CSSProperties} />)}</div>}
     <a className="skip-link" href="#main">Skip to content</a>
     <header className="site-header">

@@ -53,6 +53,21 @@ test('fish follows a continuous jump and lands with a single fading splash', () 
   advance(2); assert.equal(eggs.activeEvent, null); assert.equal(eggs.root.getObjectByName('FishLandingRipple')!.visible, false); assert.equal(eggs.root.getObjectByName('FishLandingDrops')!.visible, false);
 });
 
+test('the fin swims leading edge first and its wake trails behind throughout the curved pass', () => {
+  const { eggs, advance } = fixture(0); advance(16.5);
+  const shark = eggs.root.getObjectByName('RareSharkFin')!, wake = eggs.root.getObjectByName('SharkSurfaceWake')!;
+  const previous = shark.position.clone(), travel = new THREE.Vector3(), forward = new THREE.Vector3(), trail = new THREE.Vector3();
+  for (let i = 0; i < 90; i++) {
+    eggs.update(.05, true, 'summer');
+    travel.subVectors(shark.position, previous).setY(0).normalize();
+    forward.set(-1, 0, 0).applyQuaternion(shark.quaternion);
+    assert.ok(forward.dot(travel) > .999, 'the convex front of the fin must lead, not its swept-back edge');
+    trail.subVectors(wake.position, shark.position).setY(0);
+    assert.ok(trail.dot(travel) < -.15, 'wake stays aft of the fin');
+    previous.copy(shark.position);
+  }
+});
+
 test('sheet ghost appears only in autumn and retreats when the season changes', () => {
   const { eggs, advance } = fixture(.9); advance(15.1); assert.equal(eggs.activeEvent, 'ghost'); advance(2);
   const ghost = eggs.root.getObjectByName('RareAutumnGhost')!;

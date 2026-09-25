@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createIslandTapTracker } from './island-tap.ts';
 
 const actors = ['Mailbox', 'Khloe', 'MerchantShip', 'ChurchBell', 'WishingWell', null, 'VillageDoor'];
 
@@ -45,8 +46,7 @@ export function createIslandPicker(model: THREE.Object3D) {
 
 export function attachIslandInteractions(host: HTMLElement, canvas: HTMLCanvasElement, camera: THREE.Camera, model: THREE.Object3D, discover: (id: number, point?: THREE.Vector3) => void) {
   const ray = new THREE.Raycaster(), pointer = new THREE.Vector2(), pick = createIslandPicker(model);
-  const pointers = new Set<number>();
-  let press: { id: number; x: number; y: number; time: number } | null = null;
+  const taps = createIslandTapTracker();
   function hit(event: PointerEvent) {
     const rect = canvas.getBoundingClientRect();
     pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
@@ -55,28 +55,32 @@ export function attachIslandInteractions(host: HTMLElement, canvas: HTMLCanvasEl
   }
   function down(event: PointerEvent) {
     if (event.button !== 0) return;
-    pointers.add(event.pointerId);
-    press = pointers.size === 1 ? { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() } : null;
+    taps.down(event, performance.now());
   }
   function move(event: PointerEvent) {
-    if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 7) press = null;
+    taps.move(event);
     if (event.pointerType === 'mouse') canvas.style.cursor = event.buttons ? 'grabbing' : hit(event) !== null ? 'pointer' : 'grab';
   }
   function up(event: PointerEvent) {
-    const candidate = press; press = null; pointers.delete(event.pointerId);
-    if (!candidate || candidate.id !== event.pointerId || pointers.size || performance.now() - candidate.time > 1000 || Math.hypot(event.clientX - candidate.x, event.clientY - candidate.y) > 7) return;
+    if (!taps.up(event, performance.now())) return;
     const id = hit(event); if (id !== null) discover(id, id === 5 ? ray.intersectObject(model, true)[0]?.point : undefined);
   }
-  function cancel(event: PointerEvent) { press = null; pointers.delete(event.pointerId); }
+  function cancel(event: PointerEvent) { taps.cancel(event); }
   function leave() { canvas.style.cursor = 'grab'; }
-  // The host sees touch events before the canvas's OrbitControls touch guard.
+  // Capture observes taps before OrbitControls, without blocking native gestures.
   host.addEventListener('pointerdown', down, true); host.addEventListener('pointermove', move, true);
   host.addEventListener('pointerup', up, true); host.addEventListener('pointercancel', cancel, true);
   host.addEventListener('pointerleave', leave);
+  // The host handles a successful tap first; this also clears releases outside
+  // the canvas, cancelled gestures and a tab/window losing focus.
+  window.addEventListener('pointerup', cancel); window.addEventListener('pointercancel', cancel);
+  window.addEventListener('blur', taps.clear); canvas.addEventListener('lostpointercapture', cancel);
   canvas.style.cursor = 'grab';
   return () => {
     host.removeEventListener('pointerdown', down, true); host.removeEventListener('pointermove', move, true);
     host.removeEventListener('pointerup', up, true); host.removeEventListener('pointercancel', cancel, true);
     host.removeEventListener('pointerleave', leave);
+    window.removeEventListener('pointerup', cancel); window.removeEventListener('pointercancel', cancel);
+    window.removeEventListener('blur', taps.clear); canvas.removeEventListener('lostpointercapture', cancel); taps.clear();
   };
 }

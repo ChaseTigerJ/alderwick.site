@@ -95,11 +95,69 @@ These settings are independent of the download and store switches. Changing visu
 
 The header contains only the Alderwick home link; there is no header download button. The availability controls remain in the hero and closing section.
 
+## Announcements from the shore
+
+The optional `announcement` section is **disabled by default**. Change only `enabled` to `true` to show the included sample as a sealed village letter when someone visits. Replace the sample copy before using it for real news. It does not change download or store availability.
+
+```json
+"announcement": {
+  "enabled": false,
+  "id": "a-note-from-the-shore",
+  "mode": "letter",
+  "frequency": "session",
+  "kicker": "THE ALDERWICK POST",
+  "title": "A little news from the shore.",
+  "body": "Every little world has a story to tell. This is where we’ll share the next chapter of Alderwick.\n\nUntil then, take a wander. There’s always something waiting to be discovered.",
+  "dismissLabel": "Back to the little world",
+  "image": {
+    "url": "./island-poster.webp",
+    "alt": "Alderwick’s little coastal village, with cottages, a church, and a ship at the dock.",
+    "caption": "Small beginnings. Stories still to come."
+  },
+  "action": null,
+  "colors": {
+    "background": "#faf6e9",
+    "text": "#153e32",
+    "accent": "#a74d30"
+  }
+}
+```
+
+| Field | Options and behavior |
+| --- | --- |
+| `enabled` | `false` hides the entire announcement. `true` shows a valid configured announcement. |
+| `id` | A unique news identifier, such as `harbor-update-2`. Use letters, numbers, underscores, or hyphens, up to 80 characters. **Change this for each new announcement**, so people who dismissed an older letter see the new one. |
+| `mode` | `letter` opens a centered postcard with a dimmed backdrop. `banner` inserts a dismissible notice above the header without blocking the page. |
+| `frequency` | `visit` shows it on every page load. `session` remembers dismissal in the current browser tab until the browsing session ends. `once` remembers dismissal in that browser until the `id` changes or local website data is cleared. Blocked storage falls back to showing on the next visit. |
+| `kicker` | The small letterhead above the title, up to 80 characters. |
+| `title` | A nonempty heading, up to 140 characters. |
+| `body` | Plain text, up to 5,000 characters. Use `\n` for a line break and `\n\n` for a new paragraph. HTML and Markdown are displayed as text, never executed. |
+| `dismissLabel` | The text on the return button, up to 70 characters. The separate close button and Escape remain available for letters. |
+| `image` | An image object as shown, or `null` for a letter without artwork. `alt` is required (up to 250 characters); `caption` is optional (up to 180). Failed images are removed cleanly. Banner artwork is hidden on small screens. |
+| `action` | `null`, or an optional link object like the example below. This is separate from download availability and does not unlock a game download. |
+| `colors` | Custom `background`, `text`, and `accent` using `#RGB` or `#RRGGBB`. Text and background must have at least 4.5:1 contrast or the announcement is hidden. Accent button and seal text automatically choose a readable light/dark foreground. |
+
+To add a link below the message, replace `"action": null` with:
+
+```json
+"action": {
+  "label": "Explore the island",
+  "url": "#island",
+  "newTab": false
+}
+```
+
+Images and links accept HTTPS URLs or paths within this website. Upload artwork to `public/news/` and use a path such as `./news/harbor-update.webp`; the existing poster is available as `./island-poster.webp`. Link actions also accept section anchors such as `#world` and `#island`. Use `newTab: true` for an external page that should open separately. Embedded images are supported; executable HTML, iframes, unsafe protocols, credential URLs, and parent-directory paths are not.
+
+Letters support native dialog focus containment, Escape, backdrop dismissal, focus restoration, page scroll locking, and reduced-motion preferences. Long messages scroll inside the letter. Announcements are fetched with the existing configuration on each page visit; they do not appear partway through an already-open page when a later commit changes the file.
+
+If the optional announcement is missing or invalid, **only the announcement is hidden**. Valid world settings and release availability keep working. The `id`, `title`, and `body` are required when enabling it; omitted optional fields use the defaults above. A malformed JSON file still fails closed for the entire site, as described below.
+
 ## Validation and safe defaults
 
 Keep `"version": 1` and the existing `download`, `stores`, and `world` sections. The optional world controls and the `interface` section are optional for compatibility with earlier configuration files: omitted fields receive the defaults listed above. Explicit `false` values are preserved.
 
-Invalid JSON, missing required sections, invalid booleans, out-of-range density, light brightness, or visitor intervals, unrecognized appearance values, unavailable configuration, or unsafe enabled store URLs cause the whole configuration to fail closed: desktop downloads and store links remain unavailable. This also applies when a newly added option is invalid; an otherwise enabled download cannot bypass validation. The world can still be explored using its default system appearance, northern calendar season, and default visual controls.
+Invalid JSON, missing required sections, invalid booleans, out-of-range density, light brightness, or visitor intervals, unrecognized appearance values, unavailable configuration, or unsafe enabled store URLs cause the whole configuration to fail closed: desktop downloads and store links remain unavailable. This also applies when a newly added world or interface option is invalid; an otherwise enabled download cannot bypass validation. The optional announcement has independent validation as described above. The world can still be explored using its default system appearance, northern calendar season, and default visual controls.
 
 Use unquoted `true` or `false` for switches and an unquoted number for `snowAmount`. For example, `"snowAmount": 1.5` is valid; `"snowAmount": "1.5"` is not.
 

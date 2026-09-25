@@ -1,0 +1,69 @@
+.announcement{color:var(--notice-ink);background:var(--notice-paper);font-family:'DM Sans',sans-serif;--notice-rule:color-mix(in srgb,var(--notice-ink) 20%,transparent);overflow-wrap:anywhere}
+.notice-letter{border:1px solid var(--notice-rule);padding:10px;width:min(860px,calc(100vw - 40px));max-width:none;max-height:calc(100dvh - 40px);overflow:auto;border-radius:3px;box-shadow:0 24px 100px #142d2740;overscroll-behavior:contain}
+.notice-letter::backdrop{background:#152c276b;backdrop-filter:blur(5px)}
+.notice-letter[open]{animation:notice-arrive .45s ease-out both}
+.notice-layout{position:relative;border:1px solid var(--notice-rule);min-width:0}
+.notice-letter.notice-has-image .notice-layout{display:grid;grid-template-columns:.82fr 1.18fr}
+.notice-copy{padding:36px 40px 28px;min-width:0}
+.notice-close{position:absolute;z-index:2;top:10px;right:10px;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--notice-paper);border:1px solid var(--notice-rule);color:var(--notice-ink)}
+.notice-close:hover{background:color-mix(in srgb,var(--notice-paper) 90%,var(--notice-ink))}
+.notice-letterhead{display:flex;align-items:center;gap:12px;margin-bottom:26px;padding-right:12px;min-height:44px}
+.notice-letterhead>p{font-size:9px;font-weight:600;letter-spacing:2px;line-height:1.6}
+.notice-seal{flex:none;display:grid;place-items:center;width:45px;height:45px;color:var(--notice-accent-text);background:var(--notice-accent);border:3px double var(--notice-accent-text);border-radius:50%;transform:rotate(-8deg);box-shadow:2px 3px 0 color-mix(in srgb,var(--notice-ink) 12%,transparent)}
+.notice-postmark{margin-left:auto;flex:none;opacity:.45;transform:rotate(-12deg)}
+.announcement h2{font-family:var(--serif);font-size:clamp(38px,4vw,50px);font-weight:500;line-height:1.03;letter-spacing:-1.1px;margin:0 0 22px;max-width:520px;outline:none}
+.notice-body{font-size:13px;line-height:1.85}
+.notice-body p{white-space:pre-line}
+.notice-body p+p{margin-top:16px}
+.notice-actions{display:flex;flex-wrap:wrap;align-items:center;gap:15px;margin-top:26px}
+.notice-action,.notice-dismiss{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:10px;font-size:12px;font-weight:500;line-height:1.5;text-align:left}
+.notice-action{padding:12px 17px;background:var(--notice-accent);color:var(--notice-accent-text);border-radius:3px;transition:transform .2s}
+.notice-action:hover{transform:translateY(-2px)}
+.notice-dismiss{padding:8px 0;color:var(--notice-ink);background:transparent;border-bottom:1px solid var(--notice-rule)}
+.notice-dismiss>span{font-size:16px}
+.notice-dismiss-only{font-weight:600}
+.notice-signature{margin-top:30px;padding-top:18px;border-top:1px solid var(--notice-rule);font-size:10px;letter-spacing:.2px;display:flex;align-items:baseline;gap:5px}
+.notice-signature>span{font-family:var(--serif);font-size:22px;font-style:italic}
+.notice-picture{margin:0;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--notice-rule);background:color-mix(in srgb,var(--notice-paper) 91%,var(--notice-ink));position:relative;overflow:hidden}
+.notice-picture:before{content:'A POSTCARD FROM ALDERWICK';position:absolute;top:30px;left:22px;right:22px;text-align:center;font-size:8px;letter-spacing:2px;z-index:1}
+.notice-picture img{width:100%;height:100%;min-height:260px;flex:1;object-fit:cover;display:block}
+.notice-picture figcaption{padding:18px 24px;font-family:var(--serif);font-size:20px;line-height:1.2;font-style:italic;text-align:center;border-top:1px solid var(--notice-rule)}
+.announcement :is(a,button):focus-visible{outline:2px solid var(--notice-ink);outline-offset:4px}
+.notice-banner{position:relative;z-index:8;padding:12px 4.3%;border-bottom:1px solid var(--notice-rule)}
+.notice-banner .notice-layout{display:flex;gap:24px;max-width:1620px;margin:auto;border:0}
+.notice-banner .notice-copy{padding:10px 56px 10px 0;flex:1}
+.notice-banner .notice-letterhead{margin-bottom:9px;min-height:0;gap:8px}
+.notice-banner .notice-seal{width:28px;height:28px;border-width:2px;box-shadow:none}
+.notice-banner .notice-seal svg{width:17px;height:17px}
+.notice-banner .notice-postmark,.notice-banner .notice-signature,.notice-banner .notice-picture:before,.notice-banner .notice-picture figcaption{display:none}
+.notice-banner h2{font-size:29px;letter-spacing:-.5px;margin-bottom:8px;max-width:none}
+.notice-banner .notice-body{font-size:12px;max-width:1000px;line-height:1.75}
+.notice-banner .notice-body p+p{margin-top:8px}
+.notice-banner .notice-actions{margin-top:12px;gap:20px}
+.notice-banner .notice-picture{width:160px;flex-shrink:0;border:1px solid var(--notice-rule);margin:10px 0}
+.notice-banner .notice-picture img{min-height:150px;max-height:260px;object-fit:cover}
+.notice-banner .notice-close{top:6px;right:0}
+@keyframes notice-arrive{from{opacity:0;transform:translateY(12px) rotate(-.4deg)}to{opacity:1;transform:translateY(0) rotate(0)}}
+@media(max-width:650px){
+  .notice-letter{width:calc(100vw - 24px);max-height:calc(100dvh - 24px);padding:7px}
+  .notice-letter.notice-has-image .notice-layout{grid-template-columns:1fr}
+  .notice-copy{padding:26px 25px 22px}
+  .notice-letter .notice-picture{border-right:0;border-bottom:1px solid var(--notice-rule);height:190px}
+  .notice-letter .notice-picture:before{top:17px;font-size:7px;letter-spacing:1.7px}
+  .notice-letter .notice-picture img{min-height:0;height:100%;object-fit:cover;object-position:center 47%}
+  .notice-letter .notice-picture figcaption{display:none}
+  .notice-letterhead{margin-bottom:20px;padding-right:23px}
+  .notice-postmark{display:none}
+  .notice-letterhead>p{font-size:8px;letter-spacing:1.6px}
+  .announcement h2{font-size:39px;margin-bottom:18px}
+  .notice-body{font-size:12px}
+  .notice-actions{gap:10px 15px;margin-top:20px}
+  .notice-signature{margin-top:23px;padding-top:15px}
+  .notice-banner{padding:10px 5%}
+  .notice-banner .notice-layout{gap:15px}
+  .notice-banner .notice-copy{padding-right:40px}
+  .notice-banner .notice-picture{display:none}
+  .notice-banner h2{font-size:29px}
+  .notice-banner .notice-close{right:-4px;top:3px;width:36px;height:36px}
+}
+@media(prefers-reduced-motion:reduce){.notice-letter[open]{animation:none}.notice-action{transition:none}}

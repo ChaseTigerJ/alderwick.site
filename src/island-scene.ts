@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createIslandOrbit } from './island-orbit';
 import { createIslandLife } from './island-life';
 import { createIslandAtmosphere } from './island-atmosphere';
 import { attachIslandInteractions } from './island-interactions';
 import { createBellChime } from './island-sound';
 import { attachIslandDrag } from './island-drag';
+import { createIslandIdleMotion } from './island-idle';
 import { createIslandFlames } from './island-flames';
 import { createIslandFlags } from './island-flags';
 import { createIslandEasterEggs } from './island-easter-eggs';
@@ -24,48 +25,26 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   const canvas = renderer.domElement; host.appendChild(canvas);
   canvas.addEventListener('webglcontextlost', event => event.preventDefault());
   const camera = new THREE.PerspectiveCamera(34, 1, .1, 120); camera.position.set(13, 13, 19);
-  const controls = new OrbitControls(camera, canvas); controls.target.set(0, .7, 0);
-  controls.enableDamping = true; controls.dampingFactor = .055; controls.enablePan = false;
-  controls.enableZoom = true; controls.zoomSpeed = .7; controls.minDistance = 10; controls.maxDistance = 35;
-  controls.minPolarAngle = .55; controls.maxPolarAngle = 1.35; controls.rotateSpeed = .48;
-  // Native one-finger page scrolling; two fingers explore the miniature.
-  // OrbitControls handles mouse + wheel; touch has an explicit separate path.
-  canvas.style.touchAction = 'pan-y';
-  const blockTouchPointer = (event: PointerEvent) => { if (event.pointerType === 'touch') event.stopImmediatePropagation(); };
-  canvas.addEventListener('pointerdown', blockTouchPointer, true);
-  let touchDistance = 0, touchX = 0, touchY = 0, sceneDirty = true;
+  const controls = createIslandOrbit(camera, canvas);
+  let sceneDirty = true;
+  const offset = new THREE.Vector3(), spherical = new THREE.Spherical();
+  spherical.setFromVector3(offset.copy(camera.position).sub(controls.target));
+  const seconds = () => performance.now() / 1000;
+  const idleMotion = createIslandIdleMotion(spherical.phi, seconds());
+  const activity = () => idleMotion.activity(seconds());
   let shakeWorld = (_dx: number, _dy: number) => {};
-  const removeDrag = attachIslandDrag(canvas, (dx, dy) => shakeWorld(dx, dy));
+  const removeDrag = attachIslandDrag(canvas, (dx, dy) => shakeWorld(dx, dy), {
+    begin: id => idleMotion.begin(id, seconds()),
+    end: id => idleMotion.end(id, seconds()),
+    cancel: () => idleMotion.cancel(seconds()),
+  });
+  const orbitKeys = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-', 'Home']);
+  const keyDown = (event: KeyboardEvent) => { if (orbitKeys.has(event.key)) idleMotion.begin(`key:${event.code || event.key}`, seconds()); };
+  const keyUp = (event: KeyboardEvent) => { if (orbitKeys.has(event.key)) idleMotion.end(`key:${event.code || event.key}`, seconds()); };
+  canvas.addEventListener('wheel', activity, { passive: true, capture: true });
+  host.addEventListener('keydown', keyDown, true); window.addEventListener('keyup', keyUp);
   const onControlsChange = () => { sceneDirty = true; };
   controls.addEventListener('change', onControlsChange);
-  const offset = new THREE.Vector3(), spherical = new THREE.Spherical();
-  function touchPair(event: TouchEvent) {
-    const a = event.touches[0], b = event.touches[1];
-    return { distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
-  }
-  function touchStart(event: TouchEvent) {
-    if (event.touches.length !== 2) { touchDistance = 0; return; }
-    if (event.cancelable) event.preventDefault();
-    const pair = touchPair(event); touchDistance = pair.distance; touchX = pair.x; touchY = pair.y;
-  }
-  function touchMove(event: TouchEvent) {
-    if (event.touches.length !== 2) { touchDistance = 0; return; }
-    if (event.cancelable) event.preventDefault();
-    const pair = touchPair(event);
-    if (touchDistance > 0 && pair.distance > 0) {
-      offset.copy(camera.position).sub(controls.target); spherical.setFromVector3(offset);
-      spherical.radius = THREE.MathUtils.clamp(spherical.radius * touchDistance / pair.distance, 10, 35);
-      spherical.theta -= (pair.x - touchX) * .008;
-      spherical.phi = THREE.MathUtils.clamp(spherical.phi - (pair.y - touchY) * .006, .55, 1.35);
-      shakeWorld((pair.x - touchX) * .008, (pair.y - touchY) * .006);
-      offset.setFromSpherical(spherical); camera.position.copy(controls.target).add(offset); controls.update(); sceneDirty = true;
-    }
-    touchDistance = pair.distance; touchX = pair.x; touchY = pair.y;
-  }
-  const touchEnd = () => { touchDistance = 0; };
-  canvas.addEventListener('touchstart', touchStart, { passive: false });
-  canvas.addEventListener('touchmove', touchMove, { passive: false });
-  canvas.addEventListener('touchend', touchEnd); canvas.addEventListener('touchcancel', touchEnd);
   const sun = new THREE.DirectionalLight(0xffe4b8, 3); sun.position.set(-8, 16, 8); sun.castShadow = true;
   const shadowSize = window.matchMedia('(pointer: coarse)').matches ? 1024 : 2048;
   sun.shadow.mapSize.set(shadowSize, shadowSize);
@@ -74,10 +53,9 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   const rim = new THREE.DirectionalLight(0xb8d6d0, 1.2); rim.position.set(5, 5, -8); scene.add(rim);
   function removeControls() {
     removeDrag();
-    controls.removeEventListener('change', onControlsChange);
-    controls.dispose(); canvas.removeEventListener('pointerdown', blockTouchPointer, true);
-    canvas.removeEventListener('touchstart', touchStart); canvas.removeEventListener('touchmove', touchMove);
-    canvas.removeEventListener('touchend', touchEnd); canvas.removeEventListener('touchcancel', touchEnd);
+    controls.removeEventListener('change', onControlsChange); controls.dispose();
+    canvas.removeEventListener('wheel', activity, true);
+    host.removeEventListener('keydown', keyDown, true); window.removeEventListener('keyup', keyUp);
   }
   let model;
   try { model = await new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/alderwick-island.glb`); }
@@ -154,7 +132,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     frame = requestAnimationFrame(animate);
     if (now - lastRender < 30) return;
     lastRender = now; const delta = THREE.MathUtils.clamp((now - last) / 1000, 0, .05); last = now;
-    if (!visible || document.hidden) return;
+    if (!visible || document.hidden) { idleMotion.suspend(now / 1000); return; }
     const s = state(), motion = !s.paused && !s.reducedMotion && s.worldSettings.animationEnabled;
     if (s.worldSettings !== lastWorldSettings) {
       atmosphere.configure(s.worldSettings);
@@ -162,7 +140,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
       lastWorldSettings = s.worldSettings; sceneDirty = true;
     }
     if (s.action && s.action.nonce !== lastAction) {
-      lastAction = s.action.nonce;
+      lastAction = s.action.nonce; activity();
       if (!s.worldSettings.discoveriesEnabled) { /* Preserve the nonce without triggering disabled discoveries. */ }
       else if (s.action.id === 5) {
         if (t - lastRustle > 5 || !motion) { atmosphere.rustleTrees(clickedTree); clickedTree = undefined; lastRustle = t; }
@@ -170,6 +148,12 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
       sceneDirty = true; renderer.shadowMap.needsUpdate = true;
     }
     if (motion) t += delta;
+    spherical.setFromVector3(offset.copy(camera.position).sub(controls.target));
+    const drift = idleMotion.step(now / 1000, delta, spherical.phi, motion);
+    if (drift.azimuth || drift.polar !== spherical.phi) {
+      spherical.theta += drift.azimuth; spherical.phi = drift.polar;
+      offset.setFromSpherical(spherical); camera.position.copy(controls.target).add(offset);
+    }
     const controlsChanged = controls.update(delta);
     const lightChanging = Math.abs(nightMix - (s.night ? 1 : 0)) > .001;
     if (!motion && !controlsChanged && !sceneDirty && !lightChanging && lastSeason === s.season) return;
@@ -210,9 +194,9 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   }
   frame = requestAnimationFrame(animate);
   return {
-    rotate(amount) { offset.copy(camera.position).sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), amount); camera.position.copy(controls.target).add(offset); controls.update(); sceneDirty = true; },
-    zoom(amount) { offset.copy(camera.position).sub(controls.target).multiplyScalar(amount).clampLength(10, 35); camera.position.copy(controls.target).add(offset); controls.update(); sceneDirty = true; },
-    reset() { controls.target.set(0, .7, 0); camera.position.set(13, 13, 19).sub(controls.target).multiplyScalar(viewScale).add(controls.target); controls.update(); sceneDirty = true; },
+    rotate(amount) { activity(); offset.copy(camera.position).sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), amount); camera.position.copy(controls.target).add(offset); controls.update(); sceneDirty = true; },
+    zoom(amount) { activity(); offset.copy(camera.position).sub(controls.target).multiplyScalar(amount).clampLength(10, 35); camera.position.copy(controls.target).add(offset); controls.update(); sceneDirty = true; },
+    reset() { activity(); controls.target.set(0, .7, 0); camera.position.set(13, 13, 19).sub(controls.target).multiplyScalar(viewScale).add(controls.target); controls.update(); sceneDirty = true; },
     dispose() {
       disposed = true; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); removeInteractions(); bellChime.dispose(); removeControls();
       const geometries = new Set<THREE.BufferGeometry>(), disposableMaterials = new Set<THREE.Material>();

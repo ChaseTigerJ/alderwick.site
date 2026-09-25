@@ -1,3 +1,5 @@
+import { parseAnnouncement, type AnnouncementConfig } from './announcement-config.ts';
+
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 export type Hemisphere = 'north' | 'south';
 export type ThemeDefault = 'system' | 'local-time' | 'day' | 'night';
@@ -30,6 +32,7 @@ export type SiteConfig = {
   stores: { ios: Store; android: Store; comingSoonText: string };
   world: WorldSettings;
   interface: InterfaceSettings;
+  announcement: AnnouncementConfig;
 };
 export type Release = { title: string; version: string; url: string; size: string; sha256?: string; requirements: string; available: boolean };
 
@@ -93,7 +96,7 @@ export function parseSiteConfig(value: unknown): SiteConfig | null {
       interfaceSettings[key] = value.interface[key];
     }
   }
-  return { version: 1, download: { enabled: value.download.enabled, comingSoonText: value.download.comingSoonText.trim() }, stores: { ios, android, comingSoonText: value.stores.comingSoonText.trim() }, world, interface: interfaceSettings };
+  return { version: 1, download: { enabled: value.download.enabled, comingSoonText: value.download.comingSoonText.trim() }, stores: { ios, android, comingSoonText: value.stores.comingSoonText.trim() }, world, interface: interfaceSettings, announcement: parseAnnouncement(value.announcement) };
 }
 
 export function parseRelease(value: unknown): Release | null {

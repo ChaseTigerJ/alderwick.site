@@ -29,6 +29,27 @@
     "easterEggIntervalSeconds": 60,
     "flameIntensity": 0.55
   },
+  "announcement": {
+    "enabled": false,
+    "id": "a-note-from-the-shore",
+    "mode": "letter",
+    "frequency": "session",
+    "kicker": "THE ALDERWICK POST",
+    "title": "A little news from the shore.",
+    "body": "Every little world has a story to tell. This is where we’ll share the next chapter of Alderwick.\n\nUntil then, take a wander. There’s always something waiting to be discovered.",
+    "dismissLabel": "Back to the little world",
+    "image": {
+      "url": "./island-poster.webp",
+      "alt": "Alderwick’s little coastal village, with cottages, a church, and a ship at the dock.",
+      "caption": "Small beginnings. Stories still to come."
+    },
+    "action": null,
+    "colors": {
+      "background": "#faf6e9",
+      "text": "#153e32",
+      "accent": "#a74d30"
+    }
+  },
   "interface": {
     "showWorldSettings": true,
     "showDiscoveryProgress": true
