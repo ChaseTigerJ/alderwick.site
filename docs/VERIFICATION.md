@@ -60,3 +60,17 @@ Physical mobile pinch testing and audible bell playback on actual devices remain
 - TypeScript and the final Vite build passed. Browser console checks returned no warnings/errors. The lazy-loaded Three.js scene is approximately 676 kB before gzip; Vite's size warning remains informational.
 
 Physical device touch/pinch QA remains outside these desktop browser checks. The unchanged game archive and DNS configuration were not modified by this visual update.
+
+
+## Harbor clearance, natural snow, and rare visitors
+
+- All 47 focused tests pass. New checks use the complete exported well roof and path triangles, full projected ship hull against the irregular cliff and dock throughout the actual rocking animation, and every vessel vertex against the sea boundary. The minimum conservative cliff gap is 0.115, dock gap 0.921, and full vessel radius 7.911 inside the 8.35 sea.
+- The Blender model contains 90 meshes, 18,571 triangles, and 1,568,916 bytes. The ship is 32% larger than the preceding export, its berth is moved and turned outward, and three light anchors follow the hull. The well and workshop supplies clear the lanes, the cottage-adjacent lamp is removed, and two slate headstones sit behind the church.
+- The coin now follows a short underhand arc beneath the well roof and beside the bucket. Its small landing ripple remains within the well water. Browser clicking and geometric flight checks passed.
+- Three cloth pennants ripple while their hoists remain fixed. Night candle pools are dimmer and shorter; ship lanterns follow the vessel. Tests cover moving light positions, bounded flicker, daylight, disabled brightness, and pause.
+- Winter defaults to 4,500 flakes in a bounded 9,000-particle pool. Varied currents, back-and-forth stirring, glass deflection, inertia, and settling replace the shared flow that caused bunching. Tests include prolonged maximum shaking, distribution across quadrants/heights, containment, settling, and pause. Repeated mouse shakes were visually checked by day and night.
+- Shark fin, fish jump, autumn sheet ghost, and grave hand were visually inspected through a temporary local harness using the production animation module. That harness was removed before the final build. Seven visitor tests cover one-shot completion, scheduling, mutual exclusion, autumn gating, pause, disabled effects, and sea-lane clearance.
+- The final production build renders without console warnings or errors. Desktop 1440×900 and phone 390×844 were inspected; the phone has no horizontal overflow or ZIP links. Download and both store availability flags remain false.
+- TypeScript and Vite pass. The lazy Three.js scene chunk is approximately 694 kB before gzip; its existing size warning remains informational. New administrative settings control candle brightness and rare-visitor frequency/availability.
+
+Physical mobile gesture testing is not included in the desktop viewport check. The game archive and DNS settings are unchanged.

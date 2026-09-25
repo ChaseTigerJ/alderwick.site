@@ -12,12 +12,16 @@ export type WorldSettings = {
   soundEnabled: boolean;
   animationEnabled: boolean;
   discoveriesEnabled: boolean;
+  easterEggsEnabled: boolean;
+  easterEggIntervalSeconds: number;
+  flameIntensity: number;
 };
 export type InterfaceSettings = { showWorldSettings: boolean; showDiscoveryProgress: boolean };
 export const DEFAULT_WORLD_SETTINGS: WorldSettings = {
   theme: 'system', season: 'current', hemisphere: 'north',
   effectsEnabled: true, shakeEnabled: true, snowAmount: 1,
   soundEnabled: true, animationEnabled: true, discoveriesEnabled: true,
+  easterEggsEnabled: true, easterEggIntervalSeconds: 60, flameIntensity: .55,
 };
 export const DEFAULT_INTERFACE_SETTINGS: InterfaceSettings = { showWorldSettings: true, showDiscoveryProgress: true };
 export type SiteConfig = {
@@ -65,7 +69,7 @@ export function parseSiteConfig(value: unknown): SiteConfig | null {
   const theme = value.world.theme, season = value.world.season, hemisphere = value.world.hemisphere;
   if (typeof theme !== 'string' || typeof season !== 'string' || typeof hemisphere !== 'string' || !['system', 'local-time', 'day', 'night'].includes(String(theme)) || !['current', 'spring', 'summer', 'autumn', 'winter'].includes(String(season)) || !['north', 'south'].includes(String(hemisphere))) return null;
   const world: WorldSettings = { ...DEFAULT_WORLD_SETTINGS, theme: theme as ThemeDefault, season: season as 'current' | Season, hemisphere: hemisphere as Hemisphere };
-  for (const key of ['effectsEnabled', 'shakeEnabled', 'soundEnabled', 'animationEnabled', 'discoveriesEnabled'] as const) {
+  for (const key of ['effectsEnabled', 'shakeEnabled', 'soundEnabled', 'animationEnabled', 'discoveriesEnabled', 'easterEggsEnabled'] as const) {
     if (value.world[key] === undefined) continue;
     if (typeof value.world[key] !== 'boolean') return null;
     world[key] = value.world[key];
@@ -73,6 +77,12 @@ export function parseSiteConfig(value: unknown): SiteConfig | null {
   if (value.world.snowAmount !== undefined) {
     if (typeof value.world.snowAmount !== 'number' || !Number.isFinite(value.world.snowAmount) || value.world.snowAmount < .5 || value.world.snowAmount > 2) return null;
     world.snowAmount = value.world.snowAmount;
+  }
+  for (const [key, min, max] of [['easterEggIntervalSeconds', 20, 300], ['flameIntensity', 0, 1]] as const) {
+    const setting = value.world[key];
+    if (setting === undefined) continue;
+    if (typeof setting !== 'number' || !Number.isFinite(setting) || setting < min || setting > max) return null;
+    world[key] = setting;
   }
   const interfaceSettings = { ...DEFAULT_INTERFACE_SETTINGS };
   if (value.interface !== undefined) {

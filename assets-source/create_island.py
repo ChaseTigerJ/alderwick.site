@@ -18,6 +18,7 @@ def material(name,h,emit=0):
 for n,h in {'grass_ground':'788B57','grass_tufts':'8C9F67','sand':'C6B68B','cliff':'8D7560','cliff_light':'A8957C','cliff_dark':'75665C','wood':'574536','wood_light':'9E7D52','plaster':'E7D6AE','plaster_alt':'C8B88E','roof':'B66147','roof_light':'C77852','roof_green':'344F47','roof_green_light':'4C6A57','stone':'9C9A88','leaf_gold':'C9903D','leaf_orange':'B76C36','leaf_light':'D8AB55','leaf_green':'728148','leaf_pine':'365B48','leaf_pine_light':'50735A','canvas':'F3E1B7','iron':'424A40','berry':'954D46','pumpkin':'D38138','dog':'B69665','pink':'D394AC'}.items():material(n,h)
 material('window_glow','FFE2A0',.3)
 material('brass','C79C4A');material('brass_dark','795730')
+material('flag_cloth','954D46');material('grave_slate','777E78');material('grave_carving','A6ABA0')
 material('church_clapboard','E6DFC8');material('church_trim','F4EED9');material('roof_church','657063');material('roof_church_courses','818B79')
 M['brass'].node_tree.nodes.get('Principled BSDF').inputs['Roughness'].default_value=.46
 # Dedicated dog colors prevent seasonal vegetation changes from recoloring Khloe.
@@ -271,7 +272,9 @@ def colonial_church(x,y,rot=-.06):
 colonial_church(.68,1.30)
 cottage('Fisher cottage',-2.25,.5,1.55,1.62,1.14,.17,green=True,interactive=True)
 cottage('Harbor workshop',3.22,.85,1.42,1.6,1.07,-.25)
-wx,wy=.9,-1.23
+# The entire 1.16-by-0.86 roof clears both lanes, with room for a visitor
+# at the front opening; the old well sat directly across Village lane.
+wx,wy=2.03,-1.94
 well_start=set(bpy.data.objects)
 cone('Well stone curb',(wx,wy,.2),.36,.36,.4,'stone',12);cone('Dark well water',(wx,wy,.41),.28,.28,.006,'roof_green',12)
 for xx in [wx-.35,wx+.35]:cube('Well upright',(xx,wy,.58),(.07,.08,1.15),'wood_light')
@@ -289,6 +292,31 @@ for ob in set(bpy.data.objects)-bucket_start:parent_preserving_world(ob,bucket)
 well_objects=set(bpy.data.objects)-well_start;well=empty('WishingWell',(wx,wy,0));bpy.context.view_layer.update()
 for ob in well_objects:
  if ob.parent not in well_objects:parent_preserving_world(ob,well)
+# A low, forward toss passes under the roof and beside the suspended bucket.
+# Runtime follows these anchors instead of deriving a start above the roof.
+for name,position in [('WellTossAnchor',(wx+.205,wy-.71,.62)),('WellWishAnchor',(wx+.205,wy-.025,.414))]:
+ ob=empty(name,position);bpy.context.view_layer.update();parent_preserving_world(ob,well)
+
+# Plain slate markers with arched shoulders belong to the churchyard rather
+# than the village lanes. Both face the island's rear, with a small grassy
+# grave in front of the eastern marker for an occasional playful visitor.
+def headstone(x,y,w=.35,h=.48,tilt=0):
+ before=set(bpy.data.objects);d=.085;outline=[(-w/2,.045),(w/2,.045),(w/2,h-.13)]
+ for i in range(1,9):
+  a=i*math.pi/8;outline.append((math.cos(a)*w/2,h-.13+math.sin(a)*.13))
+ vertices=[(xx,yy,zz) for yy in [-d/2,d/2] for xx,zz in outline];n=len(outline)
+ faces=[tuple(range(n-1,-1,-1)),tuple(range(n,2*n))]+[(i,(i+1)%n,(i+1)%n+n,i+n) for i in range(n)]
+ mesh('Churchyard arched slate headstone',vertices,faces,'grave_slate')
+ cube('Headstone weathered foot',(0,0,.035),(w+.10,.15,.07),'stone',.012)
+ # A restrained incised cross and two short epitaph lines read at miniature scale.
+ beam('Headstone carved cross upright',(0,d/2+.002,.25),(0,d/2+.002,.385),.009,'grave_carving',4)
+ beam('Headstone carved cross arms',(-.047,d/2+.003,.335),(.047,d/2+.003,.335),.008,'grave_carving',4)
+ for zz,ww in [(.18,.19),(.13,.14)]:cube('Headstone epitaph line',(0,d/2+.005,zz),(ww,.004,.012),'grave_carving')
+ transform(set(bpy.data.objects)-before,x,y,rot=tilt)
+headstone(.48,2.95,w=.31,h=.44,tilt=-.06)
+headstone(1.08,2.95,w=.36,h=.52,tilt=.055)
+empty('GraveHandAnchor',(1.08,3.20,.025))
+empty('BackIslandGhostAnchor',(-1.8,3.55,0))
 
 def tree(x,y,s=1,k='leaf_gold'):
  canopy=anchor('TreeCanopy',(x+.06*s,y,1.75*s));canopy['radius']=.82*s
@@ -324,7 +352,8 @@ def crate(x,y,z=0,s=.4):
  cube('Supply crate',(x,y,z+s/2),(s,s,s),'wood_light',.012)
  for zz in [z+.05,z+s-.05]:cube('Crate crossbar',(x,y-s/2-.013,zz),(s+.015,.028,.053),'wood')
  beam('Crate diagonal',(x-s*.4,y-s/2-.031,z+.06),(x+s*.4,y-s/2-.031,z+s-.06),.028,'wood',4)
-barrel(2.12,-.24,s=.87);barrel(2.48,-.32,s=.72);crate(2.22,-.65,s=.32)
+# Tuck supplies into the workshop's side yard, north of the public lane.
+barrel(2.01,.28,s=.87);barrel(2.03,.64,s=.72);crate(1.77,.035,s=.32)
 for i in range(17):cube('Pier planks',(.65,-3.64-i*.15,-.055),(1.06,.133,.12),'wood_light',.009)
 for x in [.15,1.15]:
  beam('Dock bearer',(x,-3.52,-.17),(x,-6.18,-.17),.085,'wood')
@@ -336,7 +365,7 @@ for yy,ww,zz in stations:v.extend([(-ww,yy,.39+zz*.35),(ww,yy,.39+zz*.35),(-ww*.
 f=[]
 for j in range(5):
  a=j*4;b=(j+1)*4;f.extend([(a,b,b+2,a+2),(a+1,a+3,b+3,b+1),(a+2,b+2,b+3,a+3)])
-f.extend([(0,2,3,1),(20,21,23,22)]);mesh('Mayflower walnut hull',v,f,'wood');vv=[]
+f.extend([(0,2,3,1),(20,21,23,22)]);mesh('ShipHullBoundary',v,f,'wood');vv=[]
 for yy,ww,zz in stations:vv.extend([(-ww,yy,.39+zz*.35),(ww,yy,.39+zz*.35)])
 mesh('Mayflower deck',vv,[(j*2,j*2+1,j*2+3,j*2+2) for j in range(5)],'wood_light')
 for side in [-1,1]:
@@ -344,6 +373,16 @@ for side in [-1,1]:
   y,w,z=stations[j];ny,nw,nz=stations[j+1];beam('Ship gunwale',(w*side,y,.47+z*.35),(nw*side,ny,.47+nz*.35),.035,'wood_light');beam('Hull strake',(w*.85*side,y,.24+z*.5),(nw*.85*side,ny,.24+nz*.5),.022,'wood_light',4)
 cube('Stern cabin',(0,.78,.55),(.63,.56,.42),'wood_light');cube('Stern cabin roof',(0,.8,.78),(.73,.65,.09),'roof_green')
 for xx in [-.19,0,.19]:cube('Stern windows',(xx,1.067,.58),(.11,.02,.17),'window_glow')
+# Two small stern lanterns and a cabin emitter travel with the vessel. Their
+# anchors stay children of MerchantShip, so rocking also moves their light.
+for xx in [-.32,.32]:
+ beam('Ship lantern bracket',(xx,.76,.805),(xx,.76,.99),.018,'iron',6)
+ cube('Ship lantern glass',(xx,.76,1.02),(.115,.105,.15),'window_glow')
+ cube('Ship lantern base',(xx,.76,.936),(.137,.127,.025),'iron')
+ cone('Ship lantern cap',(xx,.76,1.112),.103,0,.07,'iron',4).rotation_euler.z=math.pi/4
+ for sign in [-1,1]:beam('Ship lantern corner',(xx+sign*.058,.704,.945),(xx+sign*.058,.704,1.095),.008,'iron',4)
+ anchor('ShipLanternLight',(xx,.76,1.025))
+cabin_light=anchor('ShipLanternLight',(0,1.13,.59));cabin_light['kind']='cabin'
 beam('Bowsprit',(0,-.96,.45),(0,-1.82,.83),.035,'wood_light')
 def sail(yy,z,w,h,billow=.2):
  v=[];nx=8;ny=6
@@ -353,18 +392,35 @@ def sail(yy,z,w,h,billow=.2):
    t=i/nx;v.append(((t-.5)*w*(1-.11*u),yy-billow*math.sin(math.pi*t)*math.sin(math.pi*u)-.04,z+h*u-.1*math.sin(math.pi*t)*(1-u)))
  f=[(j*(nx+1)+i,j*(nx+1)+i+1,(j+1)*(nx+1)+i+1,(j+1)*(nx+1)+i) for j in range(ny) for i in range(nx)];mesh('Billowing canvas sail',v,f,'canvas');beam('Sail yard',(-w*.55,yy,z+h),(w*.55,yy,z+h),.028,'wood_light')
  for side in [-1,1]:beam('Sail edge rope',(side*w*.5,yy-.04,z),(side*w*.445,yy-.04,z+h),.009,'canvas',4)
-for yy,top,w in [(-.48,2.45,1.25),(.45,2.8,1.4)]:
+def cloth_pennant(name,p,length,height):
+ # Separate subdivided cloth: runtime bends +X progressively away from the
+ # fixed hoist. Local Z before export is vertical; local Y becomes depth.
+ vertices=[];nx=12;ny=4
+ for j in range(ny+1):
+  v=j/ny
+  for i in range(nx+1):
+   t=i/nx;center=-height*.5+height*.13*t
+   vertices.append((length*t,.018*math.sin(t*math.pi*1.6)*t,center+(.5-v)*height*(1-t)))
+ faces=[(j*(nx+1)+i,j*(nx+1)+i+1,(j+1)*(nx+1)+i+1,(j+1)*(nx+1)+i) for j in range(ny) for i in range(nx)]
+ ob=mesh(name,vertices,faces,'flag_cloth');ob.location=p
+ for key,value in {'hoistAxis':'x','hoistAt':0.0,'flyLength':length,'waveAxis':'z','waveAmplitude':height*.15}.items():ob[key]=value
+ return ob
+
+for flag_index,(yy,top,w) in enumerate([(-.48,2.45,1.25),(.45,2.8,1.4)]):
  beam('Tall mast',(0,yy,.32),(0,yy,top+.3),.035,'wood_light');sail(yy,.94,w,.82,.21);sail(yy,1.84,w*.7,.55,.12)
  for side in [-1,1]:beam('Ship rigging',(side*.4,yy-.4,.43),(0,yy,top+.1),.011,'wood',4);beam('Ship rigging',(side*.4,yy+.42,.43),(0,yy,top+.1),.009,'wood',4)
- mesh('Ship pennant',[(0,yy,top+.3),(.38,yy,top+.25),(0,yy,top+.13)],[(0,1,2)],'berry')
+ cloth_pennant('FlagClothShip_'+str(flag_index),(0,yy,top+.3),.38,.17)
 mesh('Triangular foresail',[(0,-1.64,.88),(0,-.5,2.49),(0,-.48,1.02)],[(0,1,2)],'canvas');beam('Forestay',(0,-1.81,.85),(0,-.48,2.74),.01,'wood',4)
 ship_objects=set(bpy.data.objects)-start
-ship=empty('MerchantShip',(2.9,-4.62,-.88));ship.rotation_euler.z=-.35
+ship=empty('MerchantShip',(3.45,-5.20,-.88));ship.rotation_euler.z=-.55
 # The authored hull uses a waterline origin. Parenting before moving the group
 # preserves that pivot for bobbing and rocking in the browser.
 ship.location=(0,0,0);ship.rotation_euler.z=0;bpy.context.view_layer.update()
 for ob in ship_objects:parent_preserving_world(ob,ship)
-ship.location=(2.9,-4.62,-.88);ship.rotation_euler.z=-.35;ship.scale=(1.12,1.12,1.12)
+# A 32% larger vessel has its own berth farther from the island. The hull's
+# stern clears the southeast cliff even during a rock; its bowsprit remains
+# inside the existing 8.35-unit water disk and clear of the dock.
+ship.location=(3.45,-5.20,-.88);ship.rotation_euler.z=-.55;ship.scale=(1.48,1.48,1.48)
 
 # Khloe: an articulated, flat-shaded German Shepherd. Nose points along -Y.
 # The feet stand on Z=0; joint empties are the runtime animation contract.
@@ -439,13 +495,14 @@ def dog_tail():
  beam('Khloe tail tip',(.105,.644,.167),(.095,.71,.19),.027,'shepherd_black',6)
 build_part(tail,dog_tail)
 khloe.location=(-.74,-1.65,0);khloe.scale=(.86,.86,.86)
-for x,y in [(-1.15,-.66),(1.38,-2.58)]:
+# Keep only the harbor lamp; remove the post crowding Fisher cottage entirely.
+for x,y in [(1.38,-2.58)]:
  anchor('LanternLight',(x,y,1.02))
  beam('Lantern post',(x,y,0),(x,y,1.03),.043,'wood_light');cube('Lantern light',(x,y,1.02),(.14,.14,.2),'window_glow');cone('Lantern cap',(x,y,1.17),.135,0,.12,'iron',4).rotation_euler.z=math.pi/4;cube('Lantern foot',(x,y,.9),(.17,.17,.05),'iron')
 cube('Village bench',(-.88,-.05,.36),(.72,.25,.075),'wood_light',.012);cube('Bench back',(-.88,.05,.58),(.72,.05,.24),'wood_light',.012)
 for x in [-1.14,-.62]:cube('Bench leg',(x,-.05,.19),(.06,.16,.34),'wood')
 for j in range(5):beam('Firewood',(2.42+j%3*.11,.23,.09+(j//3)*.1),(2.42+j%3*.11,.61,.09+(j//3)*.1),.06,'wood_light',7)
-beam('Flagpole',(-.15,-3.6,0),(-.15,-3.6,1.42),.025,'wood_light');mesh('Harbor pennant',[(-.14,-3.6,1.4),(.43,-3.61,1.29),(-.14,-3.6,1.12)],[(0,1,2)],'berry')
+beam('Flagpole',(-.15,-3.6,0),(-.15,-3.6,1.42),.025,'wood_light');cloth_pennant('FlagClothHarbor',(-.14,-3.6,1.4),.57,.28)
 # Source remains independently editable; the shipping file uses material batches.
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT,'assets-source','alderwick-island.blend'))
 for ob in list(bpy.context.scene.objects):
@@ -453,7 +510,8 @@ for ob in list(bpy.context.scene.objects):
   bpy.ops.object.select_all(action='DESELECT');ob.select_set(True);bpy.context.view_layer.objects.active=ob;bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.separate(type='MATERIAL');bpy.ops.object.mode_set(mode='OBJECT')
 groups=defaultdict(list)
 for ob in list(bpy.context.scene.objects):
- if ob.type=='MESH':
+ if ob.type=='MESH' and not ob.name.startswith('FlagCloth') and ob.name!='ShipHullBoundary':
+  # Preserve cloth vertex grids and the vessel's actual collision silhouette.
   # Never merge a moving limb or ship into static island batches.
   parent_name=ob.parent.name if ob.parent else 'static'
   groups[(parent_name,ob.data.materials[0].name)].append(ob)
@@ -464,7 +522,7 @@ for (parent_name,material_name),obs in groups.items():
  bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();ob=bpy.context.object;ob.name=name;bpy.ops.object.transform_apply(location=True,rotation=True,scale=True);ob.data.name=name+'_geometry';bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
 bpy.ops.object.select_all(action='SELECT');out=os.path.join(ROOT,'public','models','alderwick-island.glb')
 bpy.ops.export_scene.gltf(filepath=out,export_format='GLB',use_selection=True,export_yup=True,export_apply=True,export_cameras=False,export_lights=False,export_materials='EXPORT',export_extras=True)
-print('EXPORTED',out,os.path.getsize(out),'bytes',len(groups),'meshes',flush=True)
+print('EXPORTED',out,os.path.getsize(out),'bytes',sum(ob.type=='MESH' for ob in bpy.context.scene.objects),'meshes',flush=True)
 # Preview-only lighting and water are excluded from the shipped GLB.
 material('preview_water','668B80');cube('Preview water',(0,0,-.975),(200,200,.1),'preview_water')
 world=bpy.context.scene.world;world.use_nodes=True;world.node_tree.nodes['Background'].inputs[0].default_value=(.5,.65,.59,1);world.node_tree.nodes['Background'].inputs[1].default_value=.6

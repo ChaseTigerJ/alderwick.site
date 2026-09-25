@@ -61,6 +61,10 @@ test('boat foam follows the movable ship without leaving the water surface', () 
   ship.position.x += 2; ship.position.y += 1; atmosphere.update(0, false, 'summer', false); foam.getMatrixAt(0, after);
   assert.ok(Math.abs(after.elements[12] - before.elements[12] - 2) < .0001);
   assert.equal(after.elements[13], before.elements[13], 'Foam must stay at sea level during ship rocking');
+  before.copy(after); ship.scale.setScalar(1.48); atmosphere.update(0, false, 'summer', false); foam.getMatrixAt(0, after);
+  assert.ok(Math.abs(after.elements[12] - ship.position.x - (before.elements[12] - ship.position.x) * 1.48) < .0001, 'Foam must expand with the larger hull');
+  assert.ok(Math.abs(after.elements[14] - ship.position.z - (before.elements[14] - ship.position.z) * 1.48) < .0001);
+  assert.equal(after.elements[13], before.elements[13]);
 });
 
 
@@ -179,8 +183,74 @@ test('snow config uses a fixed pool and disabled shake/effects honor their switc
   for (let i = 0; i < 10; i++) { a.atmosphere.update(.1, true, 'winter', false); b.atmosphere.update(.1, true, 'winter', false); }
   const snow = a.scene.getObjectByName('SnowInsideGlobe'), positions = snow.geometry.attributes.position;
   assert.deepEqual(positions.array, b.scene.getObjectByName('SnowInsideGlobe').geometry.attributes.position.array, 'Disabled shake must have no physical effect');
-  a.atmosphere.configure({ snowAmount: 2 }); assert.equal(snow.geometry.drawRange.count, 5200); assert.equal(snow.geometry.attributes.position, positions);
+  a.atmosphere.configure({ snowAmount: 2 }); assert.equal(snow.geometry.drawRange.count, 9000); assert.equal(snow.geometry.attributes.position, positions);
   a.atmosphere.configure({ snowAmount: .5, effectsEnabled: false }); a.atmosphere.update(.1, true, 'winter', false);
-  assert.equal(snow.geometry.drawRange.count, 1300); assert.equal(a.scene.getObjectByName('WinterSnowglobe').visible, false);
+  assert.equal(snow.geometry.drawRange.count, 2250); assert.equal(a.scene.getObjectByName('WinterSnowglobe').visible, false);
   assert.equal(a.scene.getObjectByName('GardenWinter').visible, true, 'Effects switch preserves static seasonal scenery');
+});
+
+
+test('dense snow stays dispersed through all sides of the globe under sustained multidirectional shaking', () => {
+  const { scene, atmosphere } = world(); atmosphere.update(0, true, 'winter', false);
+  const snow = scene.getObjectByName('SnowInsideGlobe');
+  assert.equal(snow.geometry.drawRange.count, 4500, 'Default winter should contain thousands of visible flakes');
+  for (let step = 0; step < 180; step++) {
+    // Long drags push toward one wall; reversals must disperse, not compact that wall layer.
+    const direction = Math.floor(step / 30) % 2 ? -1 : 1;
+    atmosphere.shake(direction * .12, Math.sin(step * .17) * .10 + .07);
+    atmosphere.update(1 / 30, true, 'winter', false);
+  }
+  const positions = snow.geometry.attributes.position.array, count = snow.geometry.drawRange.count;
+  const quadrants = [0, 0, 0, 0], verticalBands = [0, 0, 0];
+  let meanX = 0, meanZ = 0, nearWall = 0;
+  for (let i = 0; i < count * 3; i += 3) {
+    const x = positions[i], y = positions[i + 1], z = positions[i + 2]; meanX += x / count; meanZ += z / count;
+    quadrants[(x >= 0 ? 1 : 0) + (z >= 0 ? 2 : 0)]++; verticalBands[y < 1.25 ? 0 : y < 3.75 ? 1 : 2]++;
+    if (Math.hypot(x, y + .94, z) > 7.55) nearWall++;
+  }
+  assert.ok(quadrants.every(value => value > count * .085), `Snow collapsed to one side: ${quadrants}`);
+  assert.ok(verticalBands.every(value => value > count * .07), `Snow collapsed to one height: ${verticalBands}`);
+  assert.ok(Math.hypot(meanX, meanZ) < 2, `Snow bunched away from the center: ${meanX}, ${meanZ}`);
+  assert.ok(nearWall < count * .2, `Too much snow stuck against the glass: ${nearWall}/${count}`);
+});
+
+test('opposing drag events stir snow even when their total translation cancels', () => {
+  const stirred = world(), still = world();
+  for (const fixture of [stirred, still]) fixture.atmosphere.update(0, true, 'winter', false);
+  stirred.atmosphere.shake(.1, .08); stirred.atmosphere.shake(-.1, -.08);
+  for (let i = 0; i < 20; i++) { stirred.atmosphere.update(1 / 30, true, 'winter', false); still.atmosphere.update(1 / 30, true, 'winter', false); }
+  const a = stirred.scene.getObjectByName('SnowInsideGlobe'), b = still.scene.getObjectByName('SnowInsideGlobe');
+  let displacement = 0;
+  for (let i = 0; i < a.geometry.drawRange.count * 3; i++) displacement += Math.abs(a.geometry.attributes.position.array[i] - b.geometry.attributes.position.array[i]);
+  assert.ok(displacement / a.geometry.drawRange.count > .25, 'Back-and-forth shaking should create visible swirling');
+});
+
+test('moved wishing well keeps lawn flowers and leaves outside its roof clearance', () => {
+  const wellPosition = new THREE.Vector3(2.03, 0, 1.94);
+  const { scene, atmosphere } = world(false, model => { const well = new THREE.Group(); well.name = 'WishingWell'; well.position.copy(wellPosition); model.add(well); });
+  const matrix = new THREE.Matrix4(), point = new THREE.Vector3();
+  for (const [season, name] of [['spring', 'SpringFlowerBlooms'], ['autumn', 'AutumnGroundLeaves']]) {
+    atmosphere.update(0, false, season, false); const mesh = scene.getObjectByName(name);
+    for (let i = 0; i < mesh.count; i++) {
+      mesh.getMatrixAt(i, matrix); if (Math.abs(matrix.determinant()) < .00001) continue; point.setFromMatrixPosition(matrix);
+      assert.ok(Math.hypot(point.x - wellPosition.x, point.z - wellPosition.z) >= .759, `${name} overlaps the relocated wishing well`);
+    }
+  }
+});
+
+
+test('rapid maximum drag never compacts snow into a layer against the glass', () => {
+  const { scene, atmosphere } = world(); atmosphere.update(0, true, 'winter', false);
+  for (let i = 0; i < 600; i++) { atmosphere.shake(.5 * Math.sin(i * .08), .5); atmosphere.update(1 / 60, true, 'winter', false); }
+  const snow = scene.getObjectByName('SnowInsideGlobe'), positions = snow.geometry.attributes.position.array, count = snow.geometry.drawRange.count;
+  let nearWall = 0, aboveVillage = 0; const quadrants = [0, 0, 0, 0];
+  for (let i = 0; i < count * 3; i += 3) {
+    const x = positions[i], y = positions[i + 1], z = positions[i + 2], radius = Math.hypot(x, y + .94, z);
+    assert.ok(Number.isFinite(radius) && radius < 7.9, 'Rapid shaking pushed snow outside the glass');
+    if (radius > 7.55) nearWall++; if (y > 3.75) aboveVillage++;
+    quadrants[(x >= 0 ? 1 : 0) + (z >= 0 ? 2 : 0)]++;
+  }
+  assert.ok(nearWall < count * .15, `Rapid impulses pressed ${nearWall}/${count} flakes against the glass`);
+  assert.ok(aboveVillage > count * .10, 'Shaking should send snow above the village as well as around the ground');
+  assert.ok(quadrants.every(value => value > count * .1), `Rapid shaking bunched snow on one side: ${quadrants}`);
 });

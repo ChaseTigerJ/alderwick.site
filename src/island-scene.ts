@@ -6,6 +6,9 @@ import { createIslandAtmosphere } from './island-atmosphere';
 import { attachIslandInteractions } from './island-interactions';
 import { createBellChime } from './island-sound';
 import { attachIslandDrag } from './island-drag';
+import { createIslandFlames } from './island-flames';
+import { createIslandFlags } from './island-flags';
+import { createIslandEasterEggs } from './island-easter-eggs';
 import type { WorldSettings } from './site-config';
 import type { Season } from './Island';
 
@@ -93,6 +96,9 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   });
   const life = createIslandLife(scene, model.scene);
   const atmosphere = createIslandAtmosphere(scene, model.scene);
+  const flames = createIslandFlames(model.scene);
+  const flags = createIslandFlags(model.scene);
+  const easterEggs = createIslandEasterEggs(scene, model.scene);
   shakeWorld = (dx, dy) => {
     const s = state();
     if (s.season === 'winter' && !s.paused && !s.reducedMotion && s.worldSettings.animationEnabled && s.worldSettings.effectsEnabled && s.worldSettings.shakeEnabled) atmosphere.shake(dx, dy);
@@ -111,7 +117,6 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: .10 })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = -1.6; shadow.receiveShadow = true; scene.add(shadow);
 
   const smoke: { mesh: THREE.Mesh<THREE.IcosahedronGeometry, THREE.MeshBasicMaterial>; origin: THREE.Vector3; phase: number }[] = [];
-  const flames: { light: THREE.PointLight; base: number; phase: number }[] = [];
   model.scene.traverse(object => {
     const origin = new THREE.Vector3();
     if (object.name.startsWith('ChimneySmoke_')) {
@@ -121,14 +126,6 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
         const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xe1ddcf, transparent: true, opacity: .2, depthWrite: false }));
         scene.add(puff); smoke.push({ mesh: puff, origin: origin.clone(), phase: i / 7 + index * .16 });
       }
-    }
-    // Two outward-facing lights per cottage, plus the two freestanding lanterns.
-    // Real point lights illuminate the ground, steps and adjacent wall surfaces.
-    const window = object.name.startsWith('WindowLight_'), lantern = object.name.startsWith('LanternLight_');
-    if ((window && Number(object.name.split('_').pop()) % 4 < 2) || lantern) {
-      object.getWorldPosition(origin);
-      const light = new THREE.PointLight(0xffae62, 0, lantern ? 3.4 : 3.1, 2); light.position.copy(origin); scene.add(light);
-      flames.push({ light, base: lantern ? 2.4 : 1.15, phase: flames.length * 2.17 });
     }
   });
   const starPoints: number[] = [];
@@ -159,7 +156,11 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     lastRender = now; const delta = THREE.MathUtils.clamp((now - last) / 1000, 0, .05); last = now;
     if (!visible || document.hidden) return;
     const s = state(), motion = !s.paused && !s.reducedMotion && s.worldSettings.animationEnabled;
-    if (s.worldSettings !== lastWorldSettings) { atmosphere.configure(s.worldSettings); lastWorldSettings = s.worldSettings; sceneDirty = true; }
+    if (s.worldSettings !== lastWorldSettings) {
+      atmosphere.configure(s.worldSettings);
+      easterEggs.configure({ enabled: s.worldSettings.easterEggsEnabled && s.worldSettings.effectsEnabled, intervalSeconds: s.worldSettings.easterEggIntervalSeconds });
+      lastWorldSettings = s.worldSettings; sceneDirty = true;
+    }
     if (s.action && s.action.nonce !== lastAction) {
       lastAction = s.action.nonce;
       if (!s.worldSettings.discoveriesEnabled) { /* Preserve the nonce without triggering disabled discoveries. */ }
@@ -191,8 +192,9 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
       }
     }
     const flutter = s.reducedMotion ? 1 : 1 + Math.sin(t * 6.3) * .035 + Math.sin(t * 11.7) * .025;
-    for (const { material, name } of materials) if (/window|glow|lantern/.test(name)) { material.emissive.set(0xffb948); material.emissiveIntensity = .12 + nightMix * 2 * flutter; }
-    flames.forEach(({ light, base, phase }) => { const flicker = s.reducedMotion ? 1 : 1 + Math.sin(t * 7.1 + phase) * .055 + Math.sin(t * 12.8 + phase * 2) * .03; light.intensity = nightMix * base * flicker; });
+    for (const { material, name } of materials) if (/window|glow|lantern/.test(name)) { material.emissive.set(0xffb948); material.emissiveIntensity = .06 + nightMix * 1.1 * s.worldSettings.flameIntensity * flutter; }
+    flames.update(t, nightMix, s.worldSettings.flameIntensity, !s.reducedMotion);
+    flags.update(t);
     smoke.forEach(({ mesh, origin, phase }) => {
       mesh.visible = s.worldSettings.effectsEnabled;
       const age = ((phase + t * .115) % 1), rise = age * 1.65;
@@ -202,6 +204,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     });
     life.update(delta, motion, s.season === 'winter', camera);
     atmosphere.update(delta, motion, s.season, nightMix);
+    easterEggs.update(delta, motion, s.season);
     if (t - lastShadow > .12 || lastShadow < 0) { renderer.shadowMap.needsUpdate = true; lastShadow = t; }
     renderer.render(scene, camera);
   }

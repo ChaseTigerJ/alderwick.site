@@ -24,7 +24,10 @@
     "snowAmount": 1,
     "soundEnabled": true,
     "animationEnabled": true,
-    "discoveriesEnabled": true
+    "discoveriesEnabled": true,
+    "easterEggsEnabled": true,
+    "easterEggIntervalSeconds": 60,
+    "flameIntensity": 0.55
   },
   "interface": {
     "showWorldSettings": true,

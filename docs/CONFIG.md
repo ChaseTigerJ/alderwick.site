@@ -54,7 +54,10 @@ Use the actual published app URL. The iOS link must be on `https://apps.apple.co
   "snowAmount": 1,
   "soundEnabled": true,
   "animationEnabled": true,
-  "discoveriesEnabled": true
+  "discoveriesEnabled": true,
+  "easterEggsEnabled": true,
+  "easterEggIntervalSeconds": 60,
+  "flameIntensity": 0.55
 }
 ```
 
@@ -68,10 +71,13 @@ Visitors can preview another mood in the discreet desktop **World mood** menu. T
 | --- | --- | --- |
 | `effectsEnabled` | `true` | Enables decorative world effects and page-wide winter snow. Set `false` for a quieter presentation. |
 | `shakeEnabled` | `true` | Allows the miniature's shake interaction. It does not override reduced-motion preferences. |
-| `snowAmount` | `1` | Multiplies winter snow density, including the page overlay. Any finite number from `0.5` to `2` is valid. |
+| `snowAmount` | `1` | Multiplies winter snow density (4,500 globe flakes at `1`, bounded from 2,250 to 9,000), including the page overlay. Any finite number from `0.5` to `2` is valid. |
 | `soundEnabled` | `true` | Allows sounds started by a visitor interaction, such as the church bell. Set `false` for a silent site. |
 | `animationEnabled` | `true` | Allows world animation. Set `false` to keep a still world; visitors can still inspect the scene. The pause button cannot override this setting. |
 | `discoveriesEnabled` | `true` | Enables object discoveries and their stories, keyboard alternatives, and the discovery section. Set `false` to disable them together. |
+| `easterEggsEnabled` | `true` | Allows rare sea visitors, an autumn sheet ghost, and a brief hand emerging from the churchyard grave. They are ambient surprises and do not affect discovery progress. |
+| `easterEggIntervalSeconds` | `60` | Base interval between surprises, randomized on each appearance. Any finite number from `20` to `300` is valid. Only one surprise plays at a time. |
+| `flameIntensity` | `0.55` | Brightness of house, harbor, and ship candlelight. Range `0` (no added light) to `1`. The default casts small, soft pools with a subtle flicker. |
 
 These settings are independent of the download and store switches. Changing visual or sound settings never enables a download.
 
@@ -91,9 +97,9 @@ The header contains only the Alderwick home link; there is no header download bu
 
 ## Validation and safe defaults
 
-Keep `"version": 1` and the existing `download`, `stores`, and `world` sections. The six new world controls and the `interface` section are optional for compatibility with earlier configuration files: omitted fields receive the defaults listed above. Explicit `false` values are preserved.
+Keep `"version": 1` and the existing `download`, `stores`, and `world` sections. The optional world controls and the `interface` section are optional for compatibility with earlier configuration files: omitted fields receive the defaults listed above. Explicit `false` values are preserved.
 
-Invalid JSON, missing required sections, invalid booleans, out-of-range snow density, unrecognized appearance values, unavailable configuration, or unsafe enabled store URLs cause the whole configuration to fail closed: desktop downloads and store links remain unavailable. This also applies when a newly added option is invalid; an otherwise enabled download cannot bypass validation. The world can still be explored using its default system appearance, northern calendar season, and default visual controls.
+Invalid JSON, missing required sections, invalid booleans, out-of-range density, light brightness, or visitor intervals, unrecognized appearance values, unavailable configuration, or unsafe enabled store URLs cause the whole configuration to fail closed: desktop downloads and store links remain unavailable. This also applies when a newly added option is invalid; an otherwise enabled download cannot bypass validation. The world can still be explored using its default system appearance, northern calendar season, and default visual controls.
 
 Use unquoted `true` or `false` for switches and an unquoted number for `snowAmount`. For example, `"snowAmount": 1.5` is valid; `"snowAmount": "1.5"` is not.
 

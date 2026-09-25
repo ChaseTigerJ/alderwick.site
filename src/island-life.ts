@@ -75,10 +75,16 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
 
   const wellOrigin = new THREE.Vector3(.9, .45, 1.23);
   model.getObjectByName('WellWishAnchor')?.getWorldPosition(wellOrigin);
+  const tossOrigin = wellOrigin.clone().add(new THREE.Vector3(.2, .18, .75));
+  model.getObjectByName('WellTossAnchor')?.getWorldPosition(tossOrigin);
   const coin = new THREE.Mesh(new THREE.CylinderGeometry(.052, .052, .014, 12), new THREE.MeshStandardMaterial({ color: 0xf1cd79, metalness: .65, roughness: .3, emissive: 0xd19b39, emissiveIntensity: .15 }));
   coin.name = 'WishingCoin'; scene.add(coin);
   const wishMaterial = new THREE.MeshBasicMaterial({ color: 0xc7e4d8, transparent: true, opacity: .6, depthWrite: false });
-  const wishes = Array.from({ length: 8 }, () => { const wish = new THREE.Mesh(new THREE.IcosahedronGeometry(.035, 0), wishMaterial); scene.add(wish); return wish; });
+  const wishes = Array.from({ length: 8 }, () => { const wish = new THREE.Mesh(new THREE.IcosahedronGeometry(.015, 0), wishMaterial); scene.add(wish); return wish; });
+  const rippleMaterial = wishMaterial.clone();
+  const wishRipple = new THREE.Mesh(new THREE.RingGeometry(.8, 1, 32), rippleMaterial);
+  wishRipple.name = 'WishingWellRipple'; wishRipple.rotation.x = -Math.PI / 2; scene.add(wishRipple);
+  const coinFlight = .95;
 
   function isActive(id: number) {
     if (id === 6) return visitor.active(time);
@@ -197,19 +203,28 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
     }
     const wellElapsed = time - wellAction, wishing = wellElapsed >= 0 && wellElapsed < 4.8;
     if (bucket && bucketBase) { bucket.position.copy(bucketBase); if (wishing) bucket.position.y += Math.sin(wellElapsed / 4.8 * Math.PI) * .075; }
-    coin.visible = wishing && wellElapsed < 1.2;
+    coin.visible = wishing && wellElapsed < coinFlight;
     if (coin.visible) {
-      const drop = wellElapsed / 1.2;
-      coin.position.copy(wellOrigin); coin.position.y += 1.3 * (1 - drop * drop);
-      coin.rotation.set(drop * 8, drop * 3, .4);
+      const progress = wellElapsed / coinFlight;
+      // A short underhand arc enters through the open front, beneath the roof.
+      coin.position.lerpVectors(tossOrigin, wellOrigin, progress);
+      coin.position.y += .8 * progress * (1 - progress);
+      coin.rotation.set(progress * 9, progress * 3, .4);
+    }
+    const rippleAge = wellElapsed - coinFlight;
+    wishRipple.visible = wishing && rippleAge >= 0 && rippleAge < 1.25;
+    if (wishRipple.visible) {
+      wishRipple.position.copy(wellOrigin); wishRipple.position.y += .008;
+      wishRipple.scale.setScalar(.035 + rippleAge * .028);
+      rippleMaterial.opacity = .48 * (1 - rippleAge / 1.25);
     }
     wishes.forEach((wish, i) => {
-      const age = wellElapsed - 1.2 - i * .055;
-      wish.visible = wishing && age >= 0 && age < 2;
+      const age = wellElapsed - coinFlight - i * .009;
+      wish.visible = wishing && age >= 0 && age < .5;
       if (!wish.visible) return;
       const a = i * Math.PI / 4;
-      wish.position.copy(wellOrigin).add(new THREE.Vector3(Math.cos(a) * age * .18, Math.sin(age / 2 * Math.PI) * .65, Math.sin(a) * age * .18));
-      wish.scale.setScalar(1 - age / 2);
+      wish.position.set(wellOrigin.x + Math.cos(a) * age * .18, wellOrigin.y + .8 * age - 1.6 * age * age, wellOrigin.z + Math.sin(a) * age * .18);
+      wish.scale.setScalar(1 - age * 2);
     });
     return { dogPin, shipPin, active: playing || showLetter || time - boatAction < 5 || bellElapsed < 4.2 || wishing };
   }

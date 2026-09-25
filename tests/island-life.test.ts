@@ -17,12 +17,29 @@ test('export preserves articulated dog, ship pivot and exact effect anchors', as
   for (const name of ['Khloe', 'KhloeBody', 'KhloeHead', 'KhloeTail', 'KhloeLegFL', 'KhloeLegFR', 'KhloeLegBL', 'KhloeLegBR', 'MerchantShip', 'PipLetterAnchor', 'Mailbox', 'MailboxDoor', 'ChurchBell', 'WishingWell', 'WellBucket', 'VillageDoor', 'DoorVisitorStart', 'DoorVisitorEnd', 'GardenPlot']) assert.ok(model.getObjectByName(name), name);
   for (let i = 0; i < 2; i++) assert.ok(model.getObjectByName(`ChimneySmoke_${i}`));
   for (let i = 0; i < 17; i++) assert.ok(model.getObjectByName(`WindowLight_${i}`));
-  for (let i = 0; i < 2; i++) assert.ok(model.getObjectByName(`LanternLight_${i}`));
+  assert.ok(model.getObjectByName('LanternLight_0'));
+  assert.equal(model.getObjectByName('LanternLight_1'), undefined, 'Cottage-adjacent lamp removed');
   assert.equal(model.getObjectByName('Khloe')!.children.filter(node => node.name.startsWith('Khloe')).length, 7);
   assert.equal(model.getObjectByName('ChimneySmoke_2'), undefined, 'Only the two remaining cottages have chimneys');
   assert.equal(model.getObjectByName('CottageFootprint_3'), undefined, 'The cramped rear cottage is removed');
-  assert.ok(Math.abs(model.getObjectByName('MerchantShip')!.scale.x - 1.12) < .001);
+  assert.ok(Math.abs(model.getObjectByName('MerchantShip')!.scale.x - 1.48) < .001);
   assert.ok(model.getObjectByName('Mailbox')!.scale.x <= .31, 'Mailbox is mounted at cottage scale');
+});
+test('a wish is tossed from beside the well, arcs below its roof and splashes at the water', async () => {
+  const { model, scene, life, camera } = await fixture();
+  const start = model.getObjectByName('WellTossAnchor')!.getWorldPosition(new THREE.Vector3());
+  const finish = model.getObjectByName('WellWishAnchor')!.getWorldPosition(new THREE.Vector3());
+  life.trigger(4, false); life.update(0, true, false, camera);
+  const coin = scene.getObjectByName('WishingCoin')!;
+  assert.ok(coin.position.distanceTo(start) < 1e-5);
+  assert.ok(Math.hypot(start.x - finish.x, start.z - finish.z) > .5, 'starts beside the opening, not overhead');
+  let high = start.y;
+  for (let i = 0; i < 94; i++) { life.update(.01, true, false, camera); high = Math.max(high, coin.position.y); assert.ok(coin.position.y < 1, 'coin cannot pass through the roof'); }
+  assert.ok(high > start.y + .05, 'short upward toss');
+  assert.ok(coin.position.distanceTo(finish) < .02);
+  life.update(.02, true, false, camera);
+  assert.equal(coin.visible, false); assert.equal(scene.getObjectByName('WishingWellRipple')!.visible, true);
+  life.update(2, true, false, camera); assert.equal(scene.getObjectByName('WishingWellRipple')!.visible, false);
 });
 test('dog roams continuously on land, pauses completely, leaves snowprints only in winter', async () => {
   const { scene, camera, life } = await fixture();

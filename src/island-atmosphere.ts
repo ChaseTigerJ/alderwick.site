@@ -97,13 +97,14 @@ export function createIslandAtmosphere(scene: THREE.Scene, model: THREE.Object3D
   const rim = new THREE.Mesh(rimGeometry, new THREE.MeshBasicMaterial({ color: 0xc9e6e5, transparent: true, opacity: .13, depthWrite: false, side: THREE.DoubleSide })); rim.position.y = -.918; globe.add(rim);
   // One bounded point draw call, with actual velocity, fluid drag and settling.
   // The pool is allocated once; snowAmount changes only its active draw range.
-  const snowCapacity = 5200, snowPositions = new Float32Array(snowCapacity * 3), snowVelocities = new Float32Array(snowCapacity * 3);
+  const snowDefault = 4500, snowCapacity = 9000, snowRadius = 7.78;
+  const snowPositions = new Float32Array(snowCapacity * 3), snowVelocities = new Float32Array(snowCapacity * 3);
   const snowSizes = new Float32Array(snowCapacity), snowMass = new Float32Array(snowCapacity), snowRest = new Float32Array(snowCapacity);
   let snowReady = false, snowEnergy = 0;
-  const snowFlow = new THREE.Vector3(), pendingImpulse = new THREE.Vector3(); let pendingVortex = 0, snowVortex = 0;
-  for (let i = 0; i < snowCapacity; i++) { snowSizes[i] = between(.065, .14); snowMass[i] = between(.7, 1.3); }
+  const snowFlow = new THREE.Vector3(), pendingImpulse = new THREE.Vector3(); let pendingAgitation = 0;
+  for (let i = 0; i < snowCapacity; i++) { snowSizes[i] = between(.055, .135); snowMass[i] = between(.7, 1.3); }
   const snowGeometry = new THREE.BufferGeometry(); snowGeometry.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3).setUsage(THREE.DynamicDrawUsage));
-  snowGeometry.setAttribute('flakeSize', new THREE.BufferAttribute(snowSizes, 1)); snowGeometry.setDrawRange(0, Math.round(2600 * settings.snowAmount));
+  snowGeometry.setAttribute('flakeSize', new THREE.BufferAttribute(snowSizes, 1)); snowGeometry.setDrawRange(0, Math.round(snowDefault * settings.snowAmount));
   const snowMaterial = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, uniforms: { tint: { value: new THREE.Color(0xf2fbfc) } },
     vertexShader: 'attribute float flakeSize; varying float alpha; void main(){vec4 p=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*p; gl_PointSize=clamp(flakeSize*320.0/max(1.0,-p.z),1.15,5.5); alpha=.56+flakeSize*2.0;}',
@@ -128,50 +129,98 @@ export function createIslandAtmosphere(scene: THREE.Scene, model: THREE.Object3D
     return floor;
   }
   function seedSnow(index: number, atTop: boolean) {
-    const a = random() * TAU, radius = Math.sqrt(random()) * 7.45, x = Math.cos(a) * radius, z = Math.sin(a) * radius;
-    const floor = snowFloor(x, z), ceiling = Math.sqrt(7.78 ** 2 - radius ** 2) - .94;
-    snowPositions[index * 3] = x; snowPositions[index * 3 + 1] = atTop ? ceiling - .08 : THREE.MathUtils.lerp(floor + .025, ceiling - .04, random()); snowPositions[index * 3 + 2] = z;
-    snowVelocities[index * 3] = 0; snowVelocities[index * 3 + 1] = -.12 * snowMass[index]; snowVelocities[index * 3 + 2] = 0; snowRest[index] = 0;
+    const n = index * 3;
+    let x = 0, y = 5, z = 0;
+    if (atTop) {
+      // Re-enter across a broad upper layer, not the glass rim where columns converge.
+      const a = random() * TAU, radius = Math.sqrt(random()) * 6.65;
+      x = Math.cos(a) * radius; z = Math.sin(a) * radius;
+      const floor = snowFloor(x, z), ceiling = Math.sqrt(snowRadius ** 2 - radius ** 2) - .94;
+      y = Math.max(floor + .06, ceiling - between(.12, 1.05));
+    } else {
+      // Uniform volume sampling avoids overpopulating the shallow outer edge of the dome.
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const a = random() * TAU, vertical = random(), radius = Math.cbrt(random()) * (snowRadius - .1), horizontal = radius * Math.sqrt(1 - vertical * vertical);
+        x = Math.cos(a) * horizontal; z = Math.sin(a) * horizontal; y = vertical * radius - .94;
+        if (y > snowFloor(x, z) + .025) break;
+        if (attempt === 39) { x = 0; z = 0; y = 5; }
+      }
+    }
+    snowPositions[n] = x; snowPositions[n + 1] = y; snowPositions[n + 2] = z;
+    snowVelocities[n] = 0; snowVelocities[n + 1] = -.17 * snowMass[index]; snowVelocities[n + 2] = 0; snowRest[index] = 0;
   }
   function shake(dx: number, dy: number, strength = 1) {
     if (!settings.effectsEnabled || !settings.shakeEnabled || !lastMotion || currentSeason !== 'winter' || !Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(strength)) return;
     const x = THREE.MathUtils.clamp(dx * strength, -.5, .5), y = THREE.MathUtils.clamp(dy * strength, -.5, .5), force = Math.hypot(x, y);
-    pendingImpulse.x += x * 20; pendingImpulse.z += y * 15; pendingImpulse.y += force * 7;
-    pendingImpulse.clampLength(0, 6); pendingVortex = THREE.MathUtils.clamp(pendingVortex + x * 10, -4, 4);
+    pendingImpulse.x += x * 12; pendingImpulse.z += y * 8; pendingImpulse.y -= y * 6;
+    pendingImpulse.clampLength(0, 4.5);
+    // Rapid back-and-forth movements still stir the water even if their vectors cancel.
+    pendingAgitation = Math.min(3.5, pendingAgitation + force * 5);
   }
   function updateSnow(step: number, moving: boolean) {
     if (!snowReady) { for (let i = 0; i < snowCapacity; i++) seedSnow(i, false); snowReady = true; }
     if (moving) {
-      const impulse = pendingImpulse.length();
-      snowFlow.add(pendingImpulse).clampLength(0, 6); snowVortex = THREE.MathUtils.clamp(snowVortex + pendingVortex, -4, 4);
-      snowEnergy = Math.min(1, snowEnergy + impulse * .22); pendingImpulse.set(0, 0, 0); pendingVortex = 0;
-      const active = snowGeometry.drawRange.count, drag = Math.exp(-step * 1.9);
+      const agitation = pendingAgitation, impulseX = pendingImpulse.x, impulseY = pendingImpulse.y, impulseZ = pendingImpulse.z;
+      snowFlow.addScaledVector(pendingImpulse, .045).clampLength(0, .4);
+      snowEnergy = Math.min(1.35, snowEnergy + agitation * .55); pendingImpulse.set(0, 0, 0); pendingAgitation = 0;
+      const active = snowGeometry.drawRange.count;
       for (let i = 0; i < active; i++) {
         const n = i * 3, mass = snowMass[i]; let x = snowPositions[n], y = snowPositions[n + 1], z = snowPositions[n + 2];
         let vx = snowVelocities[n], vy = snowVelocities[n + 1], vz = snowVelocities[n + 2];
-        const driftX = Math.sin(time * .65 + i * 1.37) * .048, driftZ = Math.cos(time * .57 + i * .83) * .044;
-        vx = vx * drag + (snowFlow.x * mass - z * snowVortex * .17 + driftX) * (1 - drag);
-        vz = vz * drag + (snowFlow.z * mass + x * snowVortex * .17 + driftZ) * (1 - drag);
-        vy = vy * drag + (snowFlow.y * (.65 + mass * .25) - .21 * mass + snowEnergy * Math.sin(i * 2.1 + time) * .15) * (1 - drag);
-        x += vx * step; y += vy * step; z += vz * step;
+        const phase = time * .57, variation = i * 2.39996323;
+        // An incompressible 3D eddy field: each component varies along the other axes.
+        // Independent rising/descending currents replace one shared upward vortex.
+        const curlX = Math.sin(z * .73 + phase + variation) + .68 * Math.sin((y - 2.5) * .86 - phase * .8 + variation * .71);
+        const curlY = Math.sin(x * .67 - phase * .7 + variation * .83) + .68 * Math.sin(z * .81 + phase * .6 + variation * .67);
+        const curlZ = Math.sin((y - 2.5) * .77 + phase * .9 + variation * .91) + .68 * Math.sin(x * .79 - phase + variation * .79);
+        if (agitation > 0) {
+          const loose = .64 + .36 * Math.sin(variation) ** 2;
+          vx += impulseX * .004 * loose;
+          vy += impulseY * .003 * loose;
+          vz += impulseZ * .004 * loose;
+          if (snowRest[i] > 0) {
+            // Lift settled flakes at varied speeds, so they do not rise as a single sheet.
+            vy = Math.max(vy, agitation * (.55 + .38 * Math.cos(variation * 1.7) ** 2)); snowRest[i] = 0;
+          }
+        }
+        const stirring = snowEnergy * 1.65;
+        let fluidX = snowFlow.x + curlX * stirring + Math.sin(time * .65 + variation) * .06;
+        let fluidY = snowFlow.y + curlY * stirring + snowEnergy * .16 - .20 * mass;
+        let fluidZ = snowFlow.z + curlZ * stirring + Math.cos(time * .57 + variation) * .06;
+        const floorBefore = snowFloor(x, z), bottom = 1 - THREE.MathUtils.smoothstep(y - floorBefore, 0, .85);
+        fluidY += (Math.max(0, -fluidY) + snowEnergy * .7) * bottom * THREE.MathUtils.smoothstep(snowEnergy, .035, .3);
         const relativeY = y + .94, radius = Math.sqrt(x * x + relativeY * relativeY + z * z);
-        if (radius > 7.78) {
-          const nx = x / radius, ny = relativeY / radius, nz = z / radius, outward = vx * nx + vy * ny + vz * nz;
-          x = nx * 7.775; y = ny * 7.775 - .94; z = nz * 7.775;
-          if (outward > 0) { vx -= nx * outward * 1.25; vy -= ny * outward * 1.25; vz -= nz * outward * 1.25; }
+        if (radius > 6.45) {
+          const nx = x / radius, ny = relativeY / radius, nz = z / radius;
+          const edge = THREE.MathUtils.smoothstep(radius, 6.45, snowRadius), outward = fluidX * nx + fluidY * ny + fluidZ * nz;
+          // Water turns along the glass before contact, rather than pressing flakes into it.
+          const deflect = Math.max(0, outward) * edge + snowEnergy * 1.55 * edge;
+          fluidX -= nx * deflect; fluidY -= ny * deflect; fluidZ -= nz * deflect;
+        }
+        const drag = Math.exp(-step * (2.15 / mass));
+        vx = vx * drag + fluidX * (1 - drag); vy = vy * drag + fluidY * (1 - drag); vz = vz * drag + fluidZ * (1 - drag);
+        const speed = Math.hypot(vx, vy, vz);
+        if (speed > 5.5) { const scale = 5.5 / speed; vx *= scale; vy *= scale; vz *= scale; }
+        x += vx * step; y += vy * step; z += vz * step;
+        const nextRadius = Math.sqrt(x * x + (y + .94) ** 2 + z * z);
+        if (nextRadius > snowRadius) {
+          const nx = x / nextRadius, ny = (y + .94) / nextRadius, nz = z / nextRadius, outward = vx * nx + vy * ny + vz * nz;
+          const inset = snowRadius - .025 - .035 * (mass - .7);
+          x = nx * inset; y = ny * inset - .94; z = nz * inset;
+          if (outward > 0) { vx -= nx * outward * 1.55; vy -= ny * outward * 1.55; vz -= nz * outward * 1.55; }
         }
         const floor = snowFloor(x, z);
         if (y <= floor) {
-          y = floor; vy = Math.max(0, vy); vx *= .82; vz *= .82; snowRest[i] += step;
-          if (snowEnergy > .12 && snowFlow.y > .25) { vy += snowFlow.y * .24 * mass; snowRest[i] = 0; }
-          // A gentle background trickle keeps the globe snowy after the shake settles.
-          else if (snowRest[i] > 7 + (i % 29) * .24) { seedSnow(i, true); continue; }
+          y = floor; vy = Math.max(0, vy); vx *= .86; vz *= .86; snowRest[i] += step;
+          // Active eddies pick snow back up throughout the bowl, without a shared updraft.
+          if (snowEnergy > .15 && fluidY > .08) { vy = Math.max(vy, fluidY * .55); snowRest[i] = 0; }
+          else if (snowRest[i] > 8 + (i % 43) * .31) { seedSnow(i, true); continue; }
         } else snowRest[i] = 0;
         snowPositions[n] = x; snowPositions[n + 1] = y; snowPositions[n + 2] = z;
         snowVelocities[n] = vx; snowVelocities[n + 1] = vy; snowVelocities[n + 2] = vz;
       }
-      snowFlow.multiplyScalar(Math.exp(-step * 1.15)); snowVortex *= Math.exp(-step * .78); snowEnergy *= Math.exp(-step * .48);
-    } else { pendingImpulse.set(0, 0, 0); pendingVortex = 0; }
+      snowFlow.multiplyScalar(Math.exp(-step * 1.6)); snowEnergy *= Math.exp(-step * .48);
+    } else { pendingImpulse.set(0, 0, 0); pendingAgitation = 0; }
     snowGeometry.attributes.position.needsUpdate = true;
   }
 
@@ -224,6 +273,7 @@ export function createIslandAtmosphere(scene: THREE.Scene, model: THREE.Object3D
   const gardenWidth = Number(gardenAnchor?.userData.width) || 1.22, gardenDepth = Number(gardenAnchor?.userData.depth) || .98;
   const gardenInverse = gardenAnchor?.matrixWorld.clone().invert() ?? new THREE.Matrix4().makeTranslation(-gardenOrigin.x, -gardenOrigin.y, -gardenOrigin.z);
   const groundProbe = new THREE.Vector3();
+  const wellPosition = model.getObjectByName('WishingWell')?.getWorldPosition(new THREE.Vector3());
   function clearGround(x: number, z: number, avoidPaths = false) {
     if ((x / 5.2) ** 2 + (z / 3.68) ** 2 > 1) return false;
     if (cottageFootprints.length) {
@@ -240,7 +290,7 @@ export function createIslandAtmosphere(scene: THREE.Scene, model: THREE.Object3D
     }
     groundProbe.set(x, .04, z).applyMatrix4(gardenInverse);
     if (Math.abs(groundProbe.x) < gardenWidth / 2 + .18 && Math.abs(groundProbe.z) < gardenDepth / 2 + .18) return false;
-    return Math.hypot(x - .9, z - 1.23) > .7 && (!avoidPaths || pathClear(x, z));
+    return (!wellPosition || Math.hypot(x - wellPosition.x, z - wellPosition.z) > .76) && (!avoidPaths || pathClear(x, z));
   }
   function openLawnPoint(avoidPaths = false) {
     // Re-sample instead of falling back to a fixed point that a moved house could cover.
@@ -511,8 +561,8 @@ export function createIslandAtmosphere(scene: THREE.Scene, model: THREE.Object3D
     if (typeof next.effectsEnabled === 'boolean') settings.effectsEnabled = next.effectsEnabled;
     if (typeof next.shakeEnabled === 'boolean') settings.shakeEnabled = next.shakeEnabled;
     if (typeof next.snowAmount === 'number' && Number.isFinite(next.snowAmount)) settings.snowAmount = THREE.MathUtils.clamp(next.snowAmount, .5, 2);
-    snowGeometry.setDrawRange(0, Math.round(2600 * settings.snowAmount));
-    if (!settings.shakeEnabled || !settings.effectsEnabled) { pendingImpulse.set(0, 0, 0); pendingVortex = 0; }
+    snowGeometry.setDrawRange(0, Math.round(snowDefault * settings.snowAmount));
+    if (!settings.shakeEnabled || !settings.effectsEnabled) { pendingImpulse.set(0, 0, 0); pendingAgitation = 0; }
   }
   return { update, rustleTrees, shake, configure };
 }

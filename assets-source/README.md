@@ -23,7 +23,9 @@ The [National Park Service nomination for Trinity Church, Newport](https://prese
 
 ## Coordinates and optimization
 
-Blender is Z-up with front -Y. glTF export converts to Y-up with front +Z. The island surface is at Y=0; water sits near Y=-0.975. Geometry is flat shaded and texture-free, with no runtime decoder extensions. Static parts are merged by material. Animated parts are merged only within their own pivot. The exported model retains named empties and glTF extras, which Three.js exposes as `userData`.
+Blender is Z-up with front -Y. glTF export converts to Y-up with front +Z. The island surface is at Y=0; water sits near Y=-0.975. Geometry is flat shaded and texture-free, with no runtime decoder extensions. Static parts are merged by material. Animated parts are merged only within their own pivot; the three cloth pennants and the actual ship hull keep separate named geometry for deformation and clearance checks. The exported model retains named empties and glTF extras, which Three.js exposes as `userData`.
+
+The current shipping GLB contains **90 meshes, 18,571 triangles, and 1,568,916 bytes**, with no textures or decoder dependencies. The modest extra meshes preserve cloth deformation, the actual hull boundary, and independent actors.
 
 `leaf_*` and `grass_*` materials identify seasonal vegetation. `roof_*` identifies roofs; `window_glow` identifies warm panes and lantern glass. Dedicated `shepherd_*`, `brass`, and `brass_dark` colors stay independent of seasonal vegetation. Material base colors are converted from sRGB swatches to linear space when authored.
 
@@ -38,7 +40,8 @@ Positions refer to the exported Y-up GLB. Preserve each node's authored rotation
 | `KhloeHead` | Neck-base pivot; neck, muzzle, upright ears, and pink collar move together. |
 | `KhloeTail` | Rump pivot; wag about local Y. |
 | `KhloeLegFL`, `KhloeLegFR`, `KhloeLegBL`, `KhloeLegBR` | Shoulder/hip pivots; swing about local X. |
-| `MerchantShip` | Waterline root at `(2.9, -0.88, 4.62)`, authored Y heading -0.35, **uniform scale 1.12**. Hull, sails, and rigging stay parented here. |
+| `MerchantShip` | Waterline root at `(3.45, -0.88, 5.20)`, authored Y heading -0.55, **uniform scale 1.48** (32% larger than the previous 1.12). Hull, sails, rigging, flags, and light anchors stay parented here. |
+| `ShipHullBoundary` | The vessel’s actual hull mesh, preserved separately under `MerchantShip`; use its transformed vertices for island/dock clearance checks. |
 | `ChurchBell` | Suspension pivot `(0.604146, 3.24, -0.037276)`, authored Y heading -0.06. Swing local X to ring. |
 | `BellHitArea` | Child marker at world `(0.604146, 3.02, -0.037276)`, `userData.radius = 0.25`. |
 | `Mailbox` | Tiny box mounted beside Fisher cottage's door at `(-1.616322, 0.125, 0.295257)`, Y heading 0.17, uniform scale 0.30. The root is an authoring origin; visible box starts at Y≈0.325. |
@@ -47,8 +50,12 @@ Positions refer to the exported Y-up GLB. Preserve each node's authored rotation
 | `VillageDoor` | Fisher cottage's actual leaf at world `(-2.340748, 0.17, 0.449034)`, authored Y heading +0.17. **Subtract** from local Y rotation to open outward, up to about 1.25 radians. |
 | `DoorVisitorStart` | Just inside Fisher doorway at `(-2.134956, 0.17, 0.170198)`, on the interior foundation. |
 | `DoorVisitorEnd` | Outside on the lane at `(-1.984384, 0.03, 1.047368)`. Visitor should descend smoothly from the interior/step height. |
-| `WishingWell` | Whole well root `(0.9, 0, 1.23)`. |
+| `WishingWell` | Whole well root `(2.03, 0, 1.94)`, fully clear of the village and harbor paths. |
 | `WellBucket` | Child suspension pivot local `(0, 0.8, 0)`; sway X/Z or lift no more than 0.1. |
+| `WellTossAnchor` | Child of well, world `(2.235, 0.62, 2.65)`: hand-height start outside the front roof opening. |
+| `WellWishAnchor` | Child of well, world `(2.235, 0.414, 1.965)`: water target offset from the hanging bucket. A short arc with less than 0.25 extra height passes under the roof. |
+| `GraveHandAnchor` | World `(1.08, 0.025, -3.20)`, lawn in front of the eastern headstone behind the church. |
+| `BackIslandGhostAnchor` | World `(-1.8, 0, -3.55)` on the rear lawn beyond the tree canopies. The ±0.50 X / ±0.10 Z loop has at least 0.20 center clearance from the cliff edge and 0.18 clearance from solid scenery. |
 
 Khloe remains a slender tan-and-black German Shepherd with a dark saddle, long wedge muzzle, erect ears, bent rear hocks, low feathered tail, and pink collar. Her complete nose-to-tail length is about 1.17 units and ear-tip height about 0.70 units after root scaling.
 
@@ -60,7 +67,9 @@ Fisher cottage has a **real 0.54-unit-wide entry opening**, from Y=0.17 to Y=1.0
 - `WindowLight_0`–`WindowLight_8`: church windows. The first two flank its entry, the next six are its side sashes, and the ninth is on the tower. They have `userData.building = "church"`.
 - `WindowLight_9`–`WindowLight_12`: Fisher cottage's front-left, front-right, side-front, side-rear windows.
 - `WindowLight_13`–`WindowLight_16`: Harbor workshop in the same window order.
-- `LanternLight_0`, `LanternLight_1`: centers `(-1.15, 1.02, 0.66)` and `(1.38, 1.02, 2.58)`.
+- `LanternLight_0`: the remaining harbor lamp at `(1.38, 1.02, 2.58)`. The cottage-adjacent post, lamp, and old anchor are removed completely.
+- `ShipLanternLight_0`, `ShipLanternLight_1`: local positions `(-0.32, 1.025, -0.76)` and `(0.32, 1.025, -0.76)` under `MerchantShip`, at the two new stern lantern glass centers.
+- `ShipLanternLight_2`: local `(0, 0.59, -1.13)`, just outside the stern cabin windows, with `userData.kind = "cabin"`. Attach lights to their anchor nodes so the light follows every bob and rock. These coordinates precede the ship’s 1.48 scale.
 - `TreeCanopy_0`–`TreeCanopy_11`: centers of the twelve deciduous trees, each with `userData.radius`; tree geometry stays batched. The last alder is relocated to ground `(-3.3, 0, 3.15)`, canopy center `(-3.2538, 1.3475, 3.15)`, on the southwest shore. This keeps the garden visible from the default camera `(13, 13, 19)` without moving the plot or fences.
 - `GardenPlot`: center `(-3.14, 0, 1.8)`, with `userData.width = 1.22`, `userData.depth = 0.98`. Soil and fence remain authored. **All old cabbage, pumpkin, and stalk meshes are removed** so the runtime owns seasonal planting and props.
 
@@ -87,7 +96,16 @@ Approximate actor bounds for small interaction volumes:
 
 - Mounted mailbox: X -1.73–-1.50, Y 0.325–0.50, Z 0.18–0.41. Prefer raycasting its actual visible meshes.
 - Bell: X about 0.40–0.81, Y 2.80–3.24, Z -0.24–0.17. Use `BellHitArea` for any additional interaction volume.
-- Whole well: X 0.32–1.48, Y 0–1.47, Z 0.80–1.66.
-- Bucket: X 0.747–1.053, Y 0.445–0.815, Z 1.077–1.383.
+- Whole well: X 1.45–2.61, Y 0–1.47, Z 1.51–2.37. The complete roof footprint is clear of both paths, not only the smaller stone curb.
+- Bucket: X 1.877–2.183, Y 0.445–0.815, Z 1.787–2.093.
+- Ship berth: the enlarged hull is southeast of the cliff and east of the dock. Its bowsprit remains inside the existing 8.35-unit water disk; neither the island nor sea needs resizing. The real exported geometry passes a full five-second runtime rock: minimum hull gap 0.115 from a conservatively expanded cliff outline, 0.921 from the dock, and maximum full-vessel radius 7.911 within the 8.35 sea. `tests/island-layout.test.ts` checks the entire projected hull and every vessel mesh vertex, not only the root position.
+- Workshop supplies: barrels at `(2.01, 0, -0.28)` and `(2.03, 0, -0.64)`, crate at `(1.77, 0, -0.035)`, in the side yard north of Village lane.
+- Churchyard: two plain arched slate markers at `(0.48, 0, -2.95)` and `(1.08, 0, -2.95)`, facing the island’s rear. They clear the church’s rear roof and path.
+
+## Cloth flags
+
+`FlagClothShip_0`, `FlagClothShip_1`, and `FlagClothHarbor` are individual 12-by-4 subdivided triangular pennants. The ship flags are children of `MerchantShip`; the harbor pennant is a scene root. They share `flag_cloth`, a two-sided material insulated from seasonal vegetation recoloring. The mailbox’s raised flag remains rigid metal and is not part of this set.
+
+All three expose `userData.hoistAxis = "x"`, `hoistAt = 0`, `waveAxis = "z"`, `flyLength` (0.38 ship / 0.57 harbor), and `waveAmplitude` (0.0255 ship / 0.042 harbor). These extras describe exported Y-up local geometry. Cache original positions and displace depth progressively by distance from the fixed X=0 hoist; retain the object’s local transform. No texture or physics solver is needed.
 
 Preview lights, camera, and water plane are created only after export and are excluded from the runtime GLB.

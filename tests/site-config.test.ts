@@ -55,6 +55,9 @@ test('older configurations get compatible world and interface defaults without c
   assert.equal(legacy.world.animationEnabled, true);
   assert.equal(legacy.world.discoveriesEnabled, true);
   assert.equal(legacy.world.snowAmount, 1);
+  assert.equal(legacy.world.easterEggsEnabled, true);
+  assert.equal(legacy.world.easterEggIntervalSeconds, 60);
+  assert.equal(legacy.world.flameIntensity, .55);
   assert.deepEqual(legacy.interface, { showWorldSettings: true, showDiscoveryProgress: true });
 });
 test('explicit administrative effects and interface switches remain false', () => {
@@ -70,13 +73,22 @@ test('explicit administrative effects and interface switches remain false', () =
 });
 test('invalid new options fail closed even when download and store links would otherwise be enabled', () => {
   const available = { ...config, stores: { ...config.stores, ios: { enabled: true, url: 'https://apps.apple.com/us/app/alderwick/id123' } } };
-  for (const key of ['effectsEnabled', 'shakeEnabled', 'soundEnabled', 'animationEnabled', 'discoveriesEnabled']) {
+  for (const key of ['effectsEnabled', 'shakeEnabled', 'soundEnabled', 'animationEnabled', 'discoveriesEnabled', 'easterEggsEnabled']) {
     for (const invalid of ['false', 0, null]) assert.equal(parseSiteConfig({ ...available, world: { ...config.world, [key]: invalid } }), null, `${key}: ${invalid}`);
   }
   for (const invalid of ['1', 0, .49, 2.01, null, NaN, Infinity]) assert.equal(parseSiteConfig({ ...available, world: { ...config.world, snowAmount: invalid } }), null, `snowAmount: ${invalid}`);
   for (const key of ['showWorldSettings', 'showDiscoveryProgress']) assert.equal(parseSiteConfig({ ...available, interface: { [key]: 'false' } }), null, key);
   assert.equal(parseSiteConfig({ ...available, interface: null }), null);
   assert.equal(parseSiteConfig({ ...available, interface: [] }), null);
+});
+test('rare visitor timing and candle brightness validate bounds without enabling downloads', () => {
+  for (const [key, min, max] of [['easterEggIntervalSeconds', 20, 300], ['flameIntensity', 0, 1]] as const) {
+    for (const valid of [min, (min + max) / 2, max]) {
+      const parsed = parseSiteConfig({ ...config, download: { ...config.download, enabled: false }, world: { ...config.world, [key]: valid, easterEggsEnabled: false } });
+      assert.equal(parsed?.world[key], valid); assert.equal(parsed?.world.easterEggsEnabled, false); assert.equal(parsed?.download.enabled, false);
+    }
+    for (const invalid of [min - .01, max + .01, '1', null, Infinity, NaN]) assert.equal(parseSiteConfig({ ...config, world: { ...config.world, [key]: invalid } }), null);
+  }
 });
 test('snow multiplier accepts both bounds and fractional values', () => {
   for (const snowAmount of [.5, 1, 1.25, 2]) assert.equal(parseSiteConfig({ ...config, world: { ...config.world, snowAmount } })?.world.snowAmount, snowAmount);
