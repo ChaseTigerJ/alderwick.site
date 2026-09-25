@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Hand, Pause, Play, Sparkle } from '@phosphor-icons/react';
+import { Pause, Play } from '@phosphor-icons/react';
 import type { IslandController } from './island-scene';
 import type { Season } from './site-config';
+import { discoveries } from './discoveries';
 export type { Season } from './site-config';
 type Props = { night: boolean; season: Season; paused: boolean; reducedMotion: boolean; found: number[]; onDiscover: (id: number) => void; action?: { id: number; nonce: number } | null; onTogglePause: () => void };
-const secrets = ['A letter from Pip', 'Khloé was here.', 'Supplies for the shore'];
 export default function Island(props: Props) {
   const host = useRef<HTMLDivElement>(null);
-  const pins = useRef<(HTMLButtonElement | null)[]>([]);
   const controller = useRef<IslandController | null>(null);
   const latest = useRef(props); latest.current = props;
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -15,7 +14,7 @@ export default function Island(props: Props) {
     let active = true;
     import('./island-scene').then(async ({ createIsland }) => {
       if (!active || !host.current) return;
-      const scene = await createIsland(host.current, pins.current, () => latest.current);
+      const scene = await createIsland(host.current, () => latest.current, (id: number) => latest.current.onDiscover(id));
       if (!active) { scene.dispose(); return; }
       controller.current = scene;
       setStatus('ready');
@@ -33,13 +32,15 @@ export default function Island(props: Props) {
       else return;
       event.preventDefault();
     }} />
-    <p className="sr-only" id="island-keyboard-help">Use left and right arrow keys to rotate, plus and minus to zoom, and Home to reset the view. On a mouse, drag to rotate and scroll to zoom. On touchscreens, use two fingers to explore or pinch to zoom; one finger scrolls the page.</p>
+    <p className="sr-only" id="island-keyboard-help">Use left and right arrow keys to rotate, plus and minus to zoom, and Home to reset the view. On a mouse, drag to rotate and scroll to zoom. On touchscreens, use two fingers to explore or pinch to zoom; one finger scrolls the page. Click objects in the world to discover their stories, or press Tab to reach the six discovery buttons.</p>
     {status === 'loading' && <div className="scene-loading" role="status"><span className="loading-line" />A little world is waking up…</div>}
     {status === 'error' && <div className="scene-fallback"><img src={`${import.meta.env.BASE_URL}island-poster.webp`} alt="Alderwick’s miniature coastal settlement" /><p>The harbor looks lovely from here. Try a browser with WebGL to explore in 3D.</p></div>}
-    <div className="island-caption"><span>A place to begin.</span><span>A world to make your own.</span></div>
-    {secrets.map((secret, index) => <button key={secret} ref={element => { pins.current[index] = element; }} className={`discovery-pin ${props.found.includes(index) ? 'found' : ''}`} style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }} onClick={() => props.onDiscover(index)} aria-label={secret} title={secret}><Sparkle weight="fill" size={15} /><span>{secret}</span></button>)}
+    {status === 'ready' && <div className="keyboard-discoveries" role="group" aria-label="Island discoveries" onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); host.current?.focus(); } }}>
+      <p>Explore a little closer</p>
+      <ul>{discoveries.map((discovery, index) => <li key={discovery.icon}><button onClick={() => props.onDiscover(index)}>{discovery.actionLabel}{props.found.includes(index) && <span className="sr-only"> — discovered</span>}</button></li>)}</ul>
+      <span>Escape returns to the world.</span>
+    </div>}
     <div className="scene-bottom">
-      <span className="drag-hint"><Hand size={17} /><span className="mouse-hint">Drag to wander. Scroll to look closer.</span><span className="touch-hint">Two fingers to explore. Pinch to look closer.</span></span>
       <button className="mobile-motion-control icon-button" aria-label={props.paused ? 'Resume world animation' : 'Pause world animation'} aria-pressed={props.paused} onClick={props.onTogglePause}>{props.paused ? <Play size={15} /> : <Pause size={15} />}</button>
     </div>
   </div>;

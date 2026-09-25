@@ -17,6 +17,8 @@ def material(name,h,emit=0):
  M[name]=m;return m
 for n,h in {'grass_ground':'788B57','grass_tufts':'8C9F67','sand':'C6B68B','cliff':'8D7560','cliff_light':'A8957C','cliff_dark':'75665C','wood':'574536','wood_light':'9E7D52','plaster':'E7D6AE','plaster_alt':'C8B88E','roof':'B66147','roof_light':'C77852','roof_green':'344F47','roof_green_light':'4C6A57','stone':'9C9A88','leaf_gold':'C9903D','leaf_orange':'B76C36','leaf_light':'D8AB55','leaf_green':'728148','leaf_pine':'365B48','leaf_pine_light':'50735A','canvas':'F3E1B7','iron':'424A40','berry':'954D46','pumpkin':'D38138','dog':'B69665','pink':'D394AC'}.items():material(n,h)
 material('window_glow','FFE2A0',.3)
+material('brass','C79C4A');material('brass_dark','795730')
+M['brass'].node_tree.nodes.get('Principled BSDF').inputs['Roughness'].default_value=.46
 # Dedicated dog colors prevent seasonal vegetation changes from recoloring Khloe.
 for name,color in {'shepherd_tan':'B58B56','shepherd_gold':'CBA56F','shepherd_cream':'D9BC8A','shepherd_sable':'554536','shepherd_black':'292A25','shepherd_nose':'202421','shepherd_eye':'120F0C','shepherd_inner_ear':'785F52','shepherd_pink':'D793AD'}.items():material(name,color)
 def empty(name,position=(0,0,0)):
@@ -77,6 +79,8 @@ def window(x,y,z,w=.32,h=.39,side=False):
   cube('Side window frame',(x,y,z),(.055,w+.085,h+.085),'wood');cube('Side warm windowpane',(x+.035,y,z),(.035,w,h),'window_glow');cube('Side window mullion',(x+.06,y,z),(.025,.035,h),'wood');cube('Side window transom',(x+.06,y,z+.015),(.025,w,.035),'wood');cube('Side window sill',(x+.095,y,z-h/2-.02),(.18,w+.13,.05),'wood_light')
 def cottage(name,x,y,w=1.7,d=1.8,h=1.25,rot=0,green=False,hall=False):
  start=set(bpy.data.objects);roof='roof_green' if green else 'roof';line='roof_green_light' if green else 'roof_light'
+ footprint=anchor('CottageFootprint',(0,0,0))
+ for key,value in {'label':name,'wallWidth':w,'wallDepth':d,'roofWidth':w+.32,'roofDepth':d+.34,'wallHeight':h+.17,'roofTop':h+.17+w*.59+.12}.items():footprint[key]=value
  cube('Stone foundation',(0,0,.08),(w+.15,d+.14,.18),'stone',.025);cube('Limewashed walls',(0,0,.17+h/2),(w,d,h),'plaster' if not green else 'plaster_alt');rz=.17+h;apex=rz+w*.59
  mesh('Plaster gables',[(-w/2,-d/2,rz),(w/2,-d/2,rz),(0,-d/2,apex),(-w/2,d/2,rz),(w/2,d/2,rz),(0,d/2,apex)],[(0,1,2),(5,4,3)],'plaster');e=w/2+.16;dep=d/2+.17
  for side in [-1,1]:
@@ -103,21 +107,58 @@ def cottage(name,x,y,w=1.7,d=1.8,h=1.25,rot=0,green=False,hall=False):
   tz=apex+.08;cube('Cupola base',(0,.3,tz+.11),(.59,.57,.18),'plaster')
   for xx in [-.23,.23]:
    for yy in [.08,.52]:cube('Cupola post',(xx,yy,tz+.46),(.065,.065,.62),'wood_light')
-  cone('Bronze bell',(0,.3,tz+.43),.15,.06,.24,'leaf_gold');cone('Cupola roof',(0,.3,tz+.86),.49,0,.5,'roof_green',4).rotation_euler.z=math.pi/4;beam('Weathervane',(0,.3,tz+1.08),(0,.3,tz+1.42),.018,'iron');beam('Vane arrow',(-.21,.3,tz+1.33),(.23,.3,tz+1.33),.018,'iron')
+  # A real flared brass bell hanging from a horizontal axle in the open belfry.
+  # Local X stays the ringing axis after the whole cottage is rotated.
+  beam('Bell suspension axle',(-.27,.3,tz+.70),(.27,.3,tz+.70),.027,'iron',8)
+  bell=empty('ChurchBell',(0,.3,tz+.70));bell_start=set(bpy.data.objects)
+  profile=[(.185,.34),(.18,.375),(.15,.40),(.115,.48),(.09,.575),(.065,.625)]
+  verts=[];sides=16
+  for radius,zz in profile:
+   verts.extend([(math.cos(i*math.tau/sides)*radius,.3+math.sin(i*math.tau/sides)*radius,tz+zz) for i in range(sides)])
+  faces=[]
+  for band in range(len(profile)-1):
+   for i in range(sides):faces.append((band*sides+i,band*sides+(i+1)%sides,(band+1)*sides+(i+1)%sides,(band+1)*sides+i))
+  faces.append(tuple(range((len(profile)-1)*sides,len(profile)*sides)))
+  mesh('Flared brass church bell',verts,faces,'brass')
+  cone('Bell mouth shadow',(0,.3,tz+.357),.156,.156,.012,'brass_dark',16)
+  beam('Bell crown',(0,.3,tz+.62),(0,.3,tz+.695),.038,'brass',8)
+  beam('Bell clapper stem',(0,.3,tz+.4),(0,.3,tz+.30),.017,'iron',6)
+  ico('Bell clapper',(0,.3,tz+.297),(.035,.035,.04),'brass_dark',2)
+  hit=empty('BellHitArea',(0,.3,tz+.48));hit['radius']=.26
+  bpy.context.view_layer.update()
+  for ob in set(bpy.data.objects)-bell_start:parent_preserving_world(ob,bell)
+  cone('Cupola roof',(0,.3,tz+.86),.49,0,.5,'roof_green',4).rotation_euler.z=math.pi/4;beam('Weathervane',(0,.3,tz+1.08),(0,.3,tz+1.42),.018,'iron');beam('Vane arrow',(-.21,.3,tz+1.33),(.23,.3,tz+1.33),.018,'iron')
   cube('Tavern sign bracket',(w/2+.22,-d/2-.16,1.1),(.45,.075,.065),'wood');cube('Tavern sign',(w/2+.34,-d/2-.16,.87),(.25,.07,.26),'roof_green',.02);ico('Sign golden leaf',(w/2+.34,-d/2-.21,.87),(.07,.02,.09),'leaf_gold')
- objs=set(bpy.data.objects)-start;transform(objs,x,y,rot=rot)
+ objs=set(bpy.data.objects)-start
+ # Transform roots only: bell meshes already inherit their animated parent.
+ transform([ob for ob in objs if ob.parent not in objs],x,y,rot=rot)
  for ob in objs:
   if ob.type!='EMPTY':ob.name=name+' | '+ob.name
 cottage('Alder and Anchor',.65,1.18,2.05,2.05,1.52,-.06,hall=True)
-cottage('Fisher cottage',-2.4,.65,1.55,1.62,1.14,.17,green=True)
-cottage('Harbor workshop',2.9,.85,1.42,1.6,1.07,-.25)
-cottage('Clifftop cottage',-3.45,2.18,1.25,1.35,.94,.25)
+cottage('Fisher cottage',-2.25,.5,1.55,1.62,1.14,.17,green=True)
+cottage('Harbor workshop',3.22,.85,1.42,1.6,1.07,-.25)
+cottage('Clifftop cottage',-3.5,2.25,1.0,1.05,.88,.25)
 wx,wy=.9,-1.23
+well_start=set(bpy.data.objects)
 cone('Well stone curb',(wx,wy,.2),.36,.36,.4,'stone',12);cone('Dark well water',(wx,wy,.41),.28,.28,.006,'roof_green',12)
 for xx in [wx-.35,wx+.35]:cube('Well upright',(xx,wy,.58),(.07,.08,1.15),'wood_light')
-beam('Well axle',(wx-.43,wy,.9),(wx+.43,wy,.9),.065,'wood',8);beam('Well rope',(wx,wy,.89),(wx,wy,.43),.015,'canvas',5)
+beam('Well axle',(wx-.43,wy,.9),(wx+.43,wy,.9),.065,'wood',8);beam('Well rope',(wx,wy,.89),(wx,wy,.80),.015,'canvas',5)
 mesh('Well roof',[(wx-.58,wy-.43,1.13),(wx+.58,wy-.43,1.13),(wx+.58,wy,1.47),(wx-.58,wy,1.47),(wx-.58,wy+.43,1.13),(wx+.58,wy+.43,1.13)],[(0,1,2,3),(3,2,5,4)],'roof_green')
+# A visible stave bucket hangs just above the stone rim. Its handle pivot permits
+# a gentle swing or a short rise without moving the well's architecture.
+bucket=empty('WellBucket',(wx,wy,.80));bucket_start=set(bpy.data.objects)
+cone('Well bucket staves',(wx,wy,.555),.12,.153,.22,'wood_light',12)
+cone('Bucket dark opening',(wx,wy,.668),.125,.125,.007,'wood',12)
+for zz,radius in [(.47,.128),(.633,.15)]:cone('Bucket iron hoop',(wx,wy,zz),radius,radius,.028,'iron',12)
+for sign in [-1,1]:beam('Bucket iron handle',(wx+sign*.14,wy,.64),(wx,wy,.80),.015,'iron',6)
+bpy.context.view_layer.update()
+for ob in set(bpy.data.objects)-bucket_start:parent_preserving_world(ob,bucket)
+well_objects=set(bpy.data.objects)-well_start;well=empty('WishingWell',(wx,wy,0));bpy.context.view_layer.update()
+for ob in well_objects:
+ if ob.parent not in well_objects:parent_preserving_world(ob,well)
+
 def tree(x,y,s=1,k='leaf_gold'):
+ canopy=anchor('TreeCanopy',(x+.06*s,y,1.75*s));canopy['radius']=.82*s
  z=1.45*s;beam('Alder trunk',(x,y,0),(x+.07*s,y,z),.12*s,'wood_light')
  for dx,dy in [(-.36,0),(.3,.19),(.12,-.32)]:beam('Alder bough',(x,y,.72*s),(x+dx*s,y+dy*s,z+.2*s),.055*s,'wood_light',5)
  for dx,dy,dz,ss in [(-.31,0,.02,.68),(.36,.1,.17,.65),(.04,-.29,.19,.69),(.05,.13,.61,.64)]:
@@ -214,6 +255,8 @@ def dog_body():
  ico('Khloe cream brisket',(0,-.286,.325),(.097,.04,.125),'shepherd_cream',1)
  for sign in [-1,1]:ico('Khloe hind haunch',(sign*.11,.22,.33),(.075,.105,.135),'shepherd_tan',2)
 build_part(body,dog_body)
+# Slim the torso without changing her legs, face, posture, or runtime joint names.
+body.scale=(.82,1,.90)
 head=joint('KhloeHead',(0,-.23,.41))
 def dog_head():
  # Upright neck, long wedge muzzle, strong brow, and very tall erect ears.
@@ -267,11 +310,41 @@ khloe.location=(-.74,-1.65,0);khloe.scale=(.86,.86,.86)
 for x,y in [(-1.15,-.66),(1.38,-2.58)]:
  anchor('LanternLight',(x,y,1.02))
  beam('Lantern post',(x,y,0),(x,y,1.03),.043,'wood_light');cube('Lantern light',(x,y,1.02),(.14,.14,.2),'window_glow');cone('Lantern cap',(x,y,1.17),.135,0,.12,'iron',4).rotation_euler.z=math.pi/4;cube('Lantern foot',(x,y,.9),(.17,.17,.05),'iron')
-cube('Village bench',(-1.35,.08,.36),(.72,.25,.075),'wood_light',.012);cube('Bench back',(-1.35,.18,.58),(.72,.05,.24),'wood_light',.012)
-for x in [-1.61,-1.09]:cube('Bench leg',(x,.08,.19),(.06,.16,.34),'wood')
+cube('Village bench',(-.88,-.05,.36),(.72,.25,.075),'wood_light',.012);cube('Bench back',(-.88,.05,.58),(.72,.05,.24),'wood_light',.012)
+for x in [-1.14,-.62]:cube('Bench leg',(x,-.05,.19),(.06,.16,.34),'wood')
 for j in range(5):beam('Firewood',(2.42+j%3*.11,.23,.09+(j//3)*.1),(2.42+j%3*.11,.61,.09+(j//3)*.1),.06,'wood_light',7)
 beam('Flagpole',(-.15,-3.6,0),(-.15,-3.6,1.42),.025,'wood_light');mesh('Harbor pennant',[(-.14,-3.6,1.4),(.43,-3.61,1.29),(-.14,-3.6,1.12)],[(0,1,2)],'berry')
-empty('PipLetterAnchor',(-.44,-2.45,.85))
+# Pip's post: an unmistakable freestanding letterbox beside the harbor path.
+# Its front flap hinges at the lower edge; +X in Three swings it outward/down.
+mailbox=empty('Mailbox');mailbox_start=set(bpy.data.objects)
+cube('Mailbox stone footing',(0,0,.055),(.34,.34,.11),'stone',.025)
+cube('Mailbox oak post',(0,0,.36),(.105,.105,.66),'wood_light',.014)
+cube('Mailbox support shelf',(0,0,.635),(.62,.57,.075),'wood_light',.012)
+# Four walls leave an actual dark interior revealed by the animated front flap.
+cube('Mailbox interior floor',(0,0,.69),(.5,.48,.05),'wood')
+cube('Mailbox left side',(-.25,0,.87),(.055,.48,.37),'roof_green')
+cube('Mailbox right side',(.25,0,.87),(.055,.48,.37),'roof_green')
+cube('Mailbox back',(0,.22,.87),(.5,.05,.37),'roof_green')
+mesh('Mailbox pitched roof',[(-.325,-.31,1.05),(.325,-.31,1.05),(0,-.31,1.225),(-.325,.31,1.05),(.325,.31,1.05),(0,.31,1.225)],[(0,3,5,2),(2,5,4,1),(0,2,1),(3,4,5)],'roof_green_light')
+beam('Mailbox roof ridge',(0,-.33,1.23),(0,.33,1.23),.019,'brass',6)
+# A little raised postal flag makes the object legible even on a small screen.
+beam('Mailbox flag pole',(.307,.015,.83),(.307,.015,1.135),.014,'brass_dark',6)
+cube('Mailbox raised flag',(.307,-.06,1.08),(.022,.155,.105),'berry',.009)
+mailbox_door=empty('MailboxDoor',(0,-.255,.65));door_start=set(bpy.data.objects)
+cube('Mailbox hinged front',(0,-.265,.85),(.455,.047,.37),'roof_green',.012)
+cube('Mailbox cream letter plaque',(0,-.293,.858),(.30,.014,.145),'canvas',.008)
+# Embossed envelope chevron rather than text that would disappear at this scale.
+for sign in [-1,1]:beam('Mailbox envelope seal line',(sign*.143,-.304,.92),(0,-.304,.844),.008,'brass_dark',4)
+ico('Mailbox brass latch',(0,-.314,1.002),(.023,.015,.022),'brass',1)
+for xx in [-.17,.17]:beam('Mailbox hinge pin',(xx-.027,-.262,.65),(xx+.027,-.262,.65),.019,'brass',8)
+bpy.context.view_layer.update()
+for ob in set(bpy.data.objects)-door_start:parent_preserving_world(ob,mailbox_door)
+letter_anchor=empty('PipLetterAnchor',(0,-.34,.87))
+mailbox_objects=set(bpy.data.objects)-mailbox_start;bpy.context.view_layer.update()
+for ob in mailbox_objects:
+ if ob.parent not in mailbox_objects:parent_preserving_world(ob,mailbox)
+mailbox.location=(1.62,-3.18,0)
+
 # Source remains independently editable; the shipping file uses material batches.
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT,'assets-source','alderwick-island.blend'))
 for ob in list(bpy.context.scene.objects):
@@ -289,7 +362,7 @@ for (parent_name,material_name),obs in groups.items():
  for ob in obs:ob.select_set(True)
  bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();ob=bpy.context.object;ob.name=name;bpy.ops.object.transform_apply(location=True,rotation=True,scale=True);ob.data.name=name+'_geometry';bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
 bpy.ops.object.select_all(action='SELECT');out=os.path.join(ROOT,'public','models','alderwick-island.glb')
-bpy.ops.export_scene.gltf(filepath=out,export_format='GLB',use_selection=True,export_yup=True,export_apply=True,export_cameras=False,export_lights=False,export_materials='EXPORT')
+bpy.ops.export_scene.gltf(filepath=out,export_format='GLB',use_selection=True,export_yup=True,export_apply=True,export_cameras=False,export_lights=False,export_materials='EXPORT',export_extras=True)
 print('EXPORTED',out,os.path.getsize(out),'bytes',len(groups),'meshes',flush=True)
 # Preview-only lighting and water are excluded from the shipped GLB.
 material('preview_water','668B80');cube('Preview water',(0,0,-.975),(200,200,.1),'preview_water')

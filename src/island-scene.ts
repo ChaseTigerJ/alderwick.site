@@ -2,11 +2,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createIslandLife } from './island-life';
+import { createIslandAtmosphere } from './island-atmosphere';
+import { attachIslandInteractions } from './island-interactions';
+import { createBellChime } from './island-sound';
 import type { Season } from './Island';
 
 export type IslandController = { rotate: (amount: number) => void; zoom: (amount: number) => void; reset: () => void; dispose: () => void };
 type State = { night: boolean; season: Season; paused: boolean; reducedMotion: boolean; found: number[]; action?: { id: number; nonce: number } | null };
-export async function createIsland(host: HTMLDivElement, pins: (HTMLButtonElement | null)[], state: () => State): Promise<IslandController> {
+export async function createIsland(host: HTMLDivElement, state: () => State, discover: (id: number) => void): Promise<IslandController> {
   const scene = new THREE.Scene();
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.7)); renderer.setClearColor(0x000000, 0);
@@ -83,17 +86,17 @@ export async function createIsland(host: HTMLDivElement, pins: (HTMLButtonElemen
     }
   });
   const life = createIslandLife(scene, model.scene);
+  const atmosphere = createIslandAtmosphere(scene, model.scene);
+  const bellChime = createBellChime();
+  let clickedTree: THREE.Vector3 | undefined;
+  const removeInteractions = attachIslandInteractions(host, canvas, camera, model.scene, (id, point) => {
+    if (id === 5 && t - lastRustle <= 5) return;
+    if (!life.isActive(id)) { clickedTree = point?.clone(); discover(id); }
+  });
   const waterMat = new THREE.MeshStandardMaterial({ color: 0x62a9a2, roughness: .42, metalness: .05, flatShading: true });
   const water = new THREE.Mesh(new THREE.CylinderGeometry(8.4, 8.15, .35, 96, 1), waterMat); water.position.y = -1.15; water.receiveShadow = true; scene.add(water);
   const surfaceGeo = new THREE.CircleGeometry(8.35, 96); surfaceGeo.rotateX(-Math.PI / 2);
   const sea = new THREE.Mesh(surfaceGeo, new THREE.MeshStandardMaterial({ color: 0x6fb7ac, roughness: .5, transparent: true, opacity: .46, side: THREE.DoubleSide })); sea.position.y = -.965; scene.add(sea);
-  const ripples: THREE.Mesh[] = [];
-  const rippleMat = new THREE.MeshBasicMaterial({ color: 0xd6ede3, transparent: true, opacity: .38, depthWrite: false, side: THREE.DoubleSide });
-  for (let i = 0; i < 32; i++) {
-    const angle = i * 2.39996, radius = 5.6 + (i % 5) * .48;
-    const ripple = new THREE.Mesh(new THREE.PlaneGeometry(.15 + (i % 4) * .12, .024), rippleMat);
-    ripple.rotation.x = -Math.PI / 2; ripple.rotation.z = angle * .12; ripple.position.set(Math.cos(angle) * radius, -.94, Math.sin(angle) * radius); ripples.push(ripple); scene.add(ripple);
-  }
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: .10 })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = -1.6; shadow.receiveShadow = true; scene.add(shadow);
 
   const smoke: { mesh: THREE.Mesh<THREE.IcosahedronGeometry, THREE.MeshBasicMaterial>; origin: THREE.Vector3; phase: number }[] = [];
@@ -121,11 +124,8 @@ export async function createIsland(host: HTMLDivElement, pins: (HTMLButtonElemen
   for (let i = 0; i < 50; i++) { const a = i * 2.3999; starPoints.push(Math.cos(a) * (7 + i % 6), 4 + (i % 9) * .6, Math.sin(a) * (7 + i % 6)); }
   const stars = new THREE.BufferGeometry(); stars.setAttribute('position', new THREE.Float32BufferAttribute(starPoints, 3));
   const starMat = new THREE.PointsMaterial({ color: 0xffe4a0, size: .065, transparent: true, opacity: 0 }); scene.add(new THREE.Points(stars, starMat));
-  const letterPin = new THREE.Vector3(-1.9, 2.6, .5);
-  model.scene.getObjectByName('PipLetterAnchor')?.getWorldPosition(letterPin); letterPin.y += 1.1;
-  const project = new THREE.Vector3();
   let width = 1, height = 1, disposed = false, frame = 0, t = 0, last = performance.now(), lastSeason: Season | '' = '';
-  let nightMix = state().night ? 1 : 0, visible = true, lastRender = 0, lastShadow = -1, lastAction = -1, viewScale = 1;
+  let nightMix = state().night ? 1 : 0, visible = true, lastRender = 0, lastShadow = -1, lastAction = -1, viewScale = 1, lastRustle = -100;
   const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; sceneDirty = true; }, { rootMargin: '100px' }); observer.observe(host);
   const resize = new ResizeObserver(() => { width = host.clientWidth; height = host.clientHeight; if (!width || !height) return; const fit = Math.max(1, 390 / window.innerWidth); offset.copy(camera.position).sub(controls.target).multiplyScalar(fit / viewScale); camera.position.copy(controls.target).add(offset); viewScale = fit; camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height); sceneDirty = true; }); resize.observe(host);
   const dayWater = new THREE.Color(0x62a9a2), nightWater = new THREE.Color(0x183749);
@@ -137,7 +137,13 @@ export async function createIsland(host: HTMLDivElement, pins: (HTMLButtonElemen
     lastRender = now; const delta = THREE.MathUtils.clamp((now - last) / 1000, 0, .05); last = now;
     if (!visible || document.hidden) return;
     const s = state(), motion = !s.paused && !s.reducedMotion;
-    if (s.action && s.action.nonce !== lastAction) { lastAction = s.action.nonce; life.trigger(s.action.id, !motion); sceneDirty = true; renderer.shadowMap.needsUpdate = true; }
+    if (s.action && s.action.nonce !== lastAction) {
+      lastAction = s.action.nonce;
+      if (s.action.id === 5) {
+        if (t - lastRustle > 5 || !motion) { atmosphere.rustleTrees(clickedTree); clickedTree = undefined; lastRustle = t; }
+      } else if (life.trigger(s.action.id, !motion) && s.action.id === 3) bellChime.play();
+      sceneDirty = true; renderer.shadowMap.needsUpdate = true;
+    }
     if (motion) t += delta;
     const controlsChanged = controls.update(delta);
     const lightChanging = Math.abs(nightMix - (s.night ? 1 : 0)) > .001;
@@ -163,22 +169,14 @@ export async function createIsland(host: HTMLDivElement, pins: (HTMLButtonElemen
     const flutter = s.reducedMotion ? 1 : 1 + Math.sin(t * 6.3) * .035 + Math.sin(t * 11.7) * .025;
     for (const { material, name } of materials) if (/window|glow|lantern/.test(name)) { material.emissive.set(0xffb948); material.emissiveIntensity = .12 + nightMix * 2 * flutter; }
     flames.forEach(({ light, base, phase }) => { const flicker = s.reducedMotion ? 1 : 1 + Math.sin(t * 7.1 + phase) * .055 + Math.sin(t * 12.8 + phase * 2) * .03; light.intensity = nightMix * base * flicker; });
-    ripples.forEach((r, i) => { r.scale.x = 1 + Math.sin(t * .7 + i) * .2; });
     smoke.forEach(({ mesh, origin, phase }) => {
       const age = ((phase + t * .115) % 1), rise = age * 1.65;
       mesh.position.copy(origin); mesh.position.y += .045 + rise;
       mesh.position.x += rise * .27 + Math.sin(age * 5 + phase) * .035 * age; mesh.position.z += rise * .08;
       mesh.scale.setScalar(.065 + age * .18); mesh.material.opacity = Math.sin(age * Math.PI) * (1 - age) * .27;
     });
-    const { dogPin, shipPin } = life.update(delta, motion, s.season === 'winter', camera);
-    const locations = [letterPin, dogPin, shipPin];
-    pins.forEach((pin, i) => {
-      if (!pin) return;
-      project.copy(locations[i]).project(camera);
-      const inFrame = project.z > -1 && project.z < 1 && Math.abs(project.x) < .95 && Math.abs(project.y) < .9;
-      pin.style.opacity = inFrame ? '1' : '0'; pin.style.pointerEvents = inFrame ? 'auto' : 'none'; pin.tabIndex = inFrame ? 0 : -1;
-      pin.style.transform = `translate(${(project.x * .5 + .5) * width}px, ${(-project.y * .5 + .5) * height}px) translate(-50%, -50%)`;
-    });
+    life.update(delta, motion, s.season === 'winter', camera);
+    atmosphere.update(delta, motion, s.season, nightMix);
     if (t - lastShadow > .12 || lastShadow < 0) { renderer.shadowMap.needsUpdate = true; lastShadow = t; }
     renderer.render(scene, camera);
   }
@@ -188,7 +186,7 @@ export async function createIsland(host: HTMLDivElement, pins: (HTMLButtonElemen
     zoom(amount) { offset.copy(camera.position).sub(controls.target).multiplyScalar(amount).clampLength(10, 35); camera.position.copy(controls.target).add(offset); controls.update(); sceneDirty = true; },
     reset() { controls.target.set(0, .7, 0); camera.position.set(13, 13, 19).sub(controls.target).multiplyScalar(viewScale).add(controls.target); controls.update(); sceneDirty = true; },
     dispose() {
-      disposed = true; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); removeControls();
+      disposed = true; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); removeInteractions(); bellChime.dispose(); removeControls();
       const geometries = new Set<THREE.BufferGeometry>(), disposableMaterials = new Set<THREE.Material>();
       scene.traverse(obj => { if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) { geometries.add(obj.geometry); for (const material of Array.isArray(obj.material) ? obj.material : [obj.material]) disposableMaterials.add(material); } });
       geometries.forEach(geometry => geometry.dispose()); disposableMaterials.forEach(material => material.dispose()); renderer.dispose(); canvas.remove();

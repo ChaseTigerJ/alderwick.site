@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
+export const PAWPRINT_LIFETIME = 5;
+
 /** Small, bounded performances. Everything shares the scene clock and stops offscreen. */
 export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
   const dog = model.getObjectByName('Khloe');
@@ -12,6 +14,9 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
   const boatBase = boat?.position.clone();
   const boatRotation = boat?.rotation.clone();
   const dogBase = dog?.position.clone();
+  const bell = model.getObjectByName('ChurchBell'), bellBase = bell?.rotation.clone();
+  const mailboxDoor = model.getObjectByName('MailboxDoor'), doorBase = mailboxDoor?.rotation.clone();
+  const bucket = model.getObjectByName('WellBucket'), bucketBase = bucket?.position.clone();
   const bodyBase = body?.position.clone();
   const joints = [body, head, tail, ...legs];
   const jointRotations = joints.map(joint => joint?.rotation.clone());
@@ -25,7 +30,7 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
   const pathLength = path.getLength();
   const position = new THREE.Vector3(), tangent = new THREE.Vector3();
   let time = 0, distance = 0, lastPrintDistance = 0, printNumber = 0;
-  let dogAction = -100, boatAction = -100, letterAction = -100, activeSeason = '';
+  let dogAction = -100, boatAction = -100, letterAction = -100, bellAction = -100, wellAction = -100, activeSeason = '';
   let firstPose = true;
 
   // One draw call for a pool of fading four-toed paw impressions.
@@ -36,7 +41,7 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
   }
   const pawGeometry = mergeGeometries(pieces); pieces.forEach(piece => piece.dispose());
   const pawMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .7, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-  const pawCount = 160;
+  const pawCount = 64;
   const paws = new THREE.InstancedMesh(pawGeometry, pawMaterial, pawCount);
   paws.name = 'KhloeSnowPawprints'; paws.frustumCulled = false; paws.renderOrder = 2;
   paws.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(paws);
@@ -66,10 +71,31 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
   model.getObjectByName('PipLetterAnchor')?.getWorldPosition(letterOrigin);
   const dogPin = new THREE.Vector3(), shipPin = new THREE.Vector3();
 
+  const wellOrigin = new THREE.Vector3(.9, .45, 1.23);
+  model.getObjectByName('WellWishAnchor')?.getWorldPosition(wellOrigin);
+  const coin = new THREE.Mesh(new THREE.CylinderGeometry(.052, .052, .014, 12), new THREE.MeshStandardMaterial({ color: 0xf1cd79, metalness: .65, roughness: .3, emissive: 0xd19b39, emissiveIntensity: .15 }));
+  coin.name = 'WishingCoin'; scene.add(coin);
+  const wishMaterial = new THREE.MeshBasicMaterial({ color: 0xc7e4d8, transparent: true, opacity: .6, depthWrite: false });
+  const wishes = Array.from({ length: 8 }, () => { const wish = new THREE.Mesh(new THREE.IcosahedronGeometry(.035, 0), wishMaterial); scene.add(wish); return wish; });
+
+  function isActive(id: number) {
+    if (id === 0) return time - letterAction < 7;
+    if (id === 1) return time - dogAction < 4.7;
+    if (id === 2) return time - boatAction < 5;
+    if (id === 3) return time - bellAction < 4.2;
+    if (id === 4) return time - wellAction < 4.8;
+    return false;
+  }
+
   function trigger(id: number, staticMotion: boolean) {
+    // Rapid repeat clicks never restart or stack a performance.
+    if (!staticMotion && isActive(id)) return false;
     if (id === 0) letterAction = time - (staticMotion ? 2.8 : 0);
-    if (id === 1) dogAction = time - (staticMotion ? .7 : 0);
+    if (id === 1) { dogAction = time - (staticMotion ? .7 : 0); if (staticMotion) firstPose = true; }
     if (id === 2) boatAction = time - (staticMotion ? .7 : 0);
+    if (id === 3) bellAction = time - (staticMotion ? .35 : 0);
+    if (id === 4) wellAction = time - (staticMotion ? 2.1 : 0);
+    return true;
   }
 
   function update(delta: number, motion: boolean, winter: boolean, camera: THREE.Camera) {
@@ -85,7 +111,7 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
       const pathHeading = Math.atan2(tangent.x, tangent.z);
       const heading = playing ? Math.atan2(camera.position.x - position.x, camera.position.z - position.z) : pathHeading;
       const headingDelta = Math.atan2(Math.sin(heading - dog.rotation.y), Math.cos(heading - dog.rotation.y));
-      dog.rotation.y += headingDelta * (firstPose ? 1 : Math.min(delta * 6, 1));
+      dog.rotation.y += headingDelta * (firstPose ? 1 : motion ? Math.min(delta * 6, 1) : 0);
       dog.position.copy(position);
       // Restore authored joint rotations before applying gait/performances.
       joints.forEach((joint, i) => { if (joint && jointRotations[i] && jointPositions[i]) { joint.rotation.copy(jointRotations[i]!); joint.position.copy(jointPositions[i]!); } });
@@ -129,8 +155,8 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
     if (winter) {
       for (let i = 0; i < pawCount; i++) {
         const p = stamps[i], age = time - p.time;
-        stamp.position.set(p.x, .043, p.z); stamp.rotation.set(0, p.angle, 0); stamp.scale.setScalar(age < 34 ? 1 : 0); stamp.updateMatrix(); paws.setMatrixAt(i, stamp.matrix);
-        printColor.copy(pawColor).lerp(snowColor, THREE.MathUtils.clamp((age - 15) / 19, 0, 1)); paws.setColorAt(i, printColor);
+        stamp.position.set(p.x, .043, p.z); stamp.rotation.set(0, p.angle, 0); stamp.scale.setScalar(age < PAWPRINT_LIFETIME ? 1 : 0); stamp.updateMatrix(); paws.setMatrixAt(i, stamp.matrix);
+        printColor.copy(pawColor).lerp(snowColor, THREE.MathUtils.clamp(age - (PAWPRINT_LIFETIME - 1), 0, 1)); paws.setColorAt(i, printColor);
       }
       paws.instanceMatrix.needsUpdate = true; if (paws.instanceColor) paws.instanceColor.needsUpdate = true;
     }
@@ -146,18 +172,41 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D) {
 
     const letterElapsed = time - letterAction;
     const showLetter = letterElapsed >= 0 && letterElapsed < 7;
+    const opening = THREE.MathUtils.smoothstep(letterElapsed, 0, .8) * (1 - THREE.MathUtils.smoothstep(letterElapsed, 5.5, 7));
+    if (mailboxDoor && doorBase) { mailboxDoor.rotation.copy(doorBase); mailboxDoor.rotation.x += opening * 1.3; }
     letter.visible = showLetter; sparkles.forEach(spark => { spark.visible = showLetter; });
     if (showLetter) {
       const entrance = THREE.MathUtils.smoothstep(letterElapsed, 0, 1.2), exit = 1 - THREE.MathUtils.smoothstep(letterElapsed, 5.3, 7);
       const amount = entrance * exit;
-      letter.position.copy(letterOrigin).add(new THREE.Vector3(Math.sin(letterElapsed * 1.5) * .8 * amount, (1.1 + Math.sin(letterElapsed * 2) * .15) * amount, 1.15 * amount));
+      letter.position.copy(letterOrigin).add(new THREE.Vector3(Math.sin(letterElapsed * 1.5) * .45 * amount, (1.0 + Math.sin(letterElapsed * 2) * .15) * amount, .45 * amount));
       letter.quaternion.copy(camera.quaternion); letter.rotateZ(Math.sin(letterElapsed * 2) * .15);
       letter.scale.setScalar(Math.max(.001, amount * 1.4));
       const unfold = THREE.MathUtils.smoothstep(letterElapsed, 1.1, 2.4) * exit;
       flap.rotation.x = -Math.PI * unfold; note.position.y = unfold * .29; note.position.z = THREE.MathUtils.lerp(-.021, .04, unfold); seal.visible = unfold < .4;
       sparkles.forEach((spark, i) => { const phase = letterElapsed * 2 + i; spark.position.copy(letter.position).add(new THREE.Vector3(Math.sin(phase) * (.25 + i * .045), -.18 - i * .11, Math.cos(phase) * .22)); spark.scale.setScalar(amount * (1 - i * .09)); });
     }
-    return { dogPin, shipPin, active: playing || showLetter || time - boatAction < 5 };
+    const bellElapsed = time - bellAction;
+    if (bell && bellBase) {
+      bell.rotation.copy(bellBase);
+      if (bellElapsed < 4.2) bell.rotation.x += Math.sin(bellElapsed * 10) * Math.exp(-bellElapsed * .75) * .62;
+    }
+    const wellElapsed = time - wellAction, wishing = wellElapsed >= 0 && wellElapsed < 4.8;
+    if (bucket && bucketBase) { bucket.position.copy(bucketBase); if (wishing) bucket.position.y += Math.sin(wellElapsed / 4.8 * Math.PI) * .075; }
+    coin.visible = wishing && wellElapsed < 1.2;
+    if (coin.visible) {
+      const drop = wellElapsed / 1.2;
+      coin.position.copy(wellOrigin); coin.position.y += 1.3 * (1 - drop * drop);
+      coin.rotation.set(drop * 8, drop * 3, .4);
+    }
+    wishes.forEach((wish, i) => {
+      const age = wellElapsed - 1.2 - i * .055;
+      wish.visible = wishing && age >= 0 && age < 2;
+      if (!wish.visible) return;
+      const a = i * Math.PI / 4;
+      wish.position.copy(wellOrigin).add(new THREE.Vector3(Math.cos(a) * age * .18, Math.sin(age / 2 * Math.PI) * .65, Math.sin(a) * age * .18));
+      wish.scale.setScalar(1 - age / 2);
+    });
+    return { dogPin, shipPin, active: playing || showLetter || time - boatAction < 5 || bellElapsed < 4.2 || wishing };
   }
-  return { update, trigger, dog, boat, dogBase };
+  return { update, trigger, isActive, dog, boat, dogBase };
 }

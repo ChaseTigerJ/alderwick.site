@@ -34,3 +34,17 @@ The following checks cover the interactive island and website administration upd
 On September 24, 2026 (EDT), a later public DNS check returned `www CNAME chasetigerj.github.io` and GitHub Pages addresses. Custom-domain HTTPS was still awaiting a valid certificate at the time of this update's local verification.
 
 Physical iOS and Android pinch gestures have not been verified on actual hardware. Browser viewport checks establish the responsive layout and availability behavior, not hardware gesture compatibility.
+
+## Seasonal world and object discoveries
+
+The September 24, 2026 seasonal update replaces floating discovery markers with clickable model geometry and keeps a keyboard discovery list that appears on focus.
+
+- All 18 focused Node tests pass. New coverage includes exactly five-second pawprint expiry, one-shot mailbox/bell/well animations, object picking and occlusion, seasonal particle bounds, frozen motion, shoreline placement, moving-ship foam, cottage clearance, and gull/leaf arrival and departure cycles.
+- The revised Blender export has 79 meshes, 17,538 triangles, and 1,525,088 bytes. The source scene and generator are included. Roof footprints are separated and Khloé's torso is slimmer.
+- Actual browser clicks on the mailbox, dog, ship, church bell, well, and tree opened the corresponding discovery. A pointer drag rotated the world without adding a discovery. Keyboard Tab revealed the discovery list, and Escape returned focus to the world.
+- Winter snowfall and glass dome, spring flowers, autumn foliage, water foam, night illumination, and the new model were visually inspected. Summer gulls and autumn replenishment were additionally checked by deterministic simulation.
+- Production preview layouts were inspected at 320, 390, 768, 1024, and 1440 pixels wide with no horizontal document overflow. Floating markers, visible gesture instructions, and the two header navigation links are absent.
+- The user's concurrent GitHub change setting `download.enabled` to `false` was preserved. The rebuilt desktop preview shows **Coming Soon!** at all three entry points; phone/tablet layouts show store availability buttons and no ZIP links.
+- TypeScript and the final production build pass. Browser console checks returned no warnings or errors. Vite reports its existing dependency directive notices and a 658 kB lazy-loaded Three.js scene chunk warning.
+
+Physical mobile pinch testing and audible bell playback on actual devices remain unverified. The portable game archive is unchanged.

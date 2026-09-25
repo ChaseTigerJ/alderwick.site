@@ -14,13 +14,15 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-`node --test tests/*.test.ts` checks configuration and live GLB animation contracts.
+`node --test tests/*.test.ts` checks configuration, object picking, GLB animation contracts, and bounded seasonal effects. GitHub Actions runs these checks before every deployment.
 
 `pnpm build` checks TypeScript and produces `dist/`. `pnpm preview` serves the production build. Dependencies and fonts are self-hosted in the build.
 
 ## The world
 
-Drag to orbit and scroll to zoom on desktop; use two fingers to orbit/pinch on touchscreens while one finger scrolls the page. Keyboard arrows, plus/minus, and Home offer the same view controls. The discreet desktop World mood menu previews day/night and seasons. Khloé roams the clearing, leaves fading pawprints in snow, and performs a play bow and happy hops when clicked. Pip’s letter unfolds in flight; the ship rocks when its supplies marker is clicked. Chimney smoke and flickering flame lights use exported Blender anchors. Reduced-motion settings disable autonomous movement; the world stops rendering while outside the viewport. On WebGL failure the Blender render remains available.
+Drag to orbit and scroll to zoom on desktop; use two fingers to orbit/pinch on touchscreens while one finger scrolls the page. Keyboard arrows, plus/minus, and Home offer the same view controls. The discreet desktop World mood menu previews day/night and seasons. Click the actual objects to discover six surprises, with no floating markers: Khloé, the mailbox, ship, church bell, well, and trees. Each click starts one bounded performance; repeated clicks during playback do not stack it. Keyboard users can Tab to an alternate discovery list. Khloé roams the clearing, leaves snowprints that disappear after five seconds, and performs a play bow and happy hops when clicked. The mailbox opens for Pip’s unfolding letter, the ship rocks, the bell swings with a quiet synthesized chime, and a coin drops into the wishing well. Chimney smoke and flickering flame lights use exported Blender anchors. Reduced-motion settings disable autonomous movement; the world stops rendering while outside the viewport. On WebGL failure the Blender render remains available.
+
+Winter adds a transparent snowglobe and light snowfall across the page; autumn leaves occasionally blow away and are replenished from the trees; spring flowers grow; summer gulls make occasional passing visits. Foam and splashes follow the irregular shoreline, dock posts, and moving ship. All effect pools are bounded and pause with the world.
 
 The game download lives in `public/downloads/`. `release.json` supplies the visible version, size, filename and setup requirements. This is a **portable browser edition**, not a signed native macOS/Windows installer. It runs the actual compiled Alderwick game on a local-only server and keeps saves in the browser.
 

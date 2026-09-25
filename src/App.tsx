@@ -4,12 +4,8 @@ import { ArrowDown, ArrowRight, Check, Compass, Leaf, Moon, Pause, Play, Sparkle
 import Island, { type Season } from './Island';
 import { AdventureButton, AvailabilityDialog, StoreButtons, type AvailabilityKind } from './Availability';
 import { useSiteSettings } from './use-site-settings';
+import { discoveries } from './discoveries';
 
-const discoveries = [
-  { title: 'A letter from Pip', text: '“A place is only a place until someone calls it home.” Pip has saved the first letter for you.', item: 'One warm welcome', icon: '01' },
-  { title: 'Khloé was here.', text: 'A pink collar, muddy paws, and absolutely no regrets. Every great settlement needs a very good dog.', item: 'One very good companion', icon: '02' },
-  { title: 'Supplies for the shore', text: 'A few tools. A little courage. Just enough to turn an unfamiliar shore into the beginning of something.', item: 'One grand beginning', icon: '03' },
-];
 const chapters = [
   { number: '01', title: 'Find your shore.', text: 'Step off the ship and into the unknown. Start small, gather what you need, and give your first settlers a place to call home.', detail: 'From the first camp to a bustling harbor.', season: 'autumn' as Season },
   { number: '02', title: 'Make a little life.', text: 'Cottages become neighborhoods. Strangers become familiar faces. Build, farm, trade, and get to know the people making it all happen.', detail: 'Little lives. Plenty of personality.', season: 'summer' as Season },
@@ -32,19 +28,15 @@ export default function App() {
   useEffect(() => { if (discovery === null) return; const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setDiscovery(null); }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, [discovery]);
   const openAvailability = (kind: AvailabilityKind = 'desktop') => { lastFocus.current = document.activeElement as HTMLElement; setAvailability(kind); };
   const closeAvailability = () => { setAvailability(null); lastFocus.current?.focus(); };
-  const discover = (id: number) => { setFound(current => current.includes(id) ? current : [...current, id]); setDiscovery(id); setAction({ id, nonce: ++nextAction.current }); };
+  const discover = (id: number) => { if (!discoveries[id]) return; setFound(current => current.includes(id) ? current : [...current, id]); setDiscovery(id); setAction({ id, nonce: ++nextAction.current }); };
   const adventureCta = mobile ? <StoreButtons config={config} onComingSoon={openAvailability} /> : <AdventureButton onClick={() => openAvailability()} available={downloadAvailable} />;
   const enter = reduced ? {} : { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { duration: .75 } };
   return <>
+    {season === 'winter' && !reduced && <div className={`page-snow${paused ? ' is-paused' : ''}`} data-night={night} aria-hidden="true">{Array.from({ length: 26 }, (_, index) => <i key={index} style={{ '--snow-left': `${(index * 47 + 9) % 101}%`, '--snow-size': `${2 + index % 4}px`, '--snow-time': `${15 + (index * 7) % 18}s`, '--snow-delay': `${-((index * 13) % 35)}s`, '--snow-drift': `${((index * 29) % 130) - 65}px`, '--snow-opacity': `${.25 + (index % 4) * .12}` } as React.CSSProperties} />)}</div>}
     <a className="skip-link" href="#main">Skip to content</a>
     <header className="site-header">
       <a className="wordmark" href="#" aria-label="Alderwick home"><TreeEvergreen weight="duotone" /><span>Alderwick</span></a>
-      <nav aria-label="Main navigation">
-        <a href="#world">The world</a>
-        <a href="#discover">A little mischief</a>
-        {!mobile && <button className="nav-download" onClick={() => openAvailability()}>{downloadAvailable ? 'Download' : 'Coming Soon!'} <ArrowDown size={16} /></button>}
-      </nav>
-      <a className="header-scroll" href="#world" aria-label="Explore Alderwick">Explore <ArrowDown size={14} /></a>
+      {!mobile && <button className="nav-download" onClick={() => openAvailability()}>{downloadAvailable ? 'Download' : 'Coming Soon!'} <ArrowDown size={16} /></button>}
     </header>
     <main id="main">
       <section className="hero" aria-labelledby="hero-title">
@@ -78,12 +70,12 @@ export default function App() {
       </section>
       <section className="discovery-section" id="discover" aria-labelledby="discovery-title">
         <div className="discovery-header"><span className="stamp"><Compass size={46} weight="thin" /></span><div><p className="eyebrow">CURIOSITY LOOKS GOOD ON YOU</p><h2 id="discovery-title">There’s more than<br /><em>meets the island.</em></h2></div></div>
-        <div className="discovery-copy"><p>Pip left a few things around the harbor. Follow the little glimmers in the world above. A letter, a friend, a new beginning.</p><div className="discovery-progress" aria-label={`${found.length} of 3 discoveries found`}>{[0,1,2].map(i => <span key={i} className={found.includes(i) ? 'complete' : ''}>{found.includes(i) ? <Check size={17} /> : <Sparkle size={17} />}</span>)}<strong>{found.length} / 3 found</strong></div><a className="text-link" href="#island">{found.length === 3 ? 'Visit your discoveries again' : 'Let’s have a look around'}<ArrowRight size={18} /></a>{found.length === 3 && <p className="completion-note">A curious soul. You’ll fit right in here.</p>}</div>
+        <div className="discovery-copy"><p>Somewhere in this little harbor, six small surprises are waiting. Wander, follow your curiosity, and see what answers back.</p><div className="discovery-progress" aria-label={`${found.length} of ${discoveries.length} discoveries found`}>{discoveries.map((_, i) => <span key={i} className={found.includes(i) ? 'complete' : ''}>{found.includes(i) ? <Check size={17} /> : <Sparkle size={17} />}</span>)}<strong>{found.length} / {discoveries.length} found</strong></div><a className="text-link" href="#island">{found.length === discoveries.length ? 'Visit your discoveries again' : 'Let’s have a look around'}<ArrowRight size={18} /></a>{found.length === discoveries.length && <p className="completion-note">A curious soul. You’ll fit right in here.</p>}</div>
       </section>
       <section className="closing-section" aria-labelledby="closing-title"><TreeEvergreen size={33} weight="duotone" /><p className="eyebrow">THE SHORE IS WAITING</p><h2 id="closing-title">Make yourself<br /><em>at home.</em></h2>{adventureCta}<p>Alderwick · A little world with a life of its own</p></section>
     </main>
     <footer className="site-footer"><a className="footer-wordmark" href="#">Alderwick</a><p>An independent world, made with care.</p><span>© {new Date().getFullYear()} Alderwick</span></footer>
-    {discovery !== null && <div className="discovery-toast" role="region" aria-label="Island discovery"><button className="icon-button toast-close" aria-label="Close discovery" onClick={() => setDiscovery(null)}><X size={18} /></button><p className="eyebrow">LITTLE DISCOVERY {discoveries[discovery].icon}</p><h3>{discoveries[discovery].title}</h3><p>{discoveries[discovery].text}</p><span className="found-item"><Check size={16} />{discoveries[discovery].item}</span><button className="discovery-replay text-link" onClick={() => { discover(discovery); document.getElementById('island')?.scrollIntoView({ behavior: reduced ? 'instant' : 'smooth', block: 'center' }); }}>{discovery === 0 ? 'Send another letter' : discovery === 1 ? 'Play with Khloé' : 'Rock the boat'}<ArrowRight size={16} /></button><span className="sr-only" role="status">Discovered {discoveries[discovery].title}. {discoveries[discovery].text} {found.length} of 3 found.</span></div>}
+    {discovery !== null && <div className="discovery-toast" role="region" aria-label="Island discovery"><button className="icon-button toast-close" aria-label="Close discovery" onClick={() => setDiscovery(null)}><X size={18} /></button><p className="eyebrow">LITTLE DISCOVERY {discoveries[discovery].icon}</p><h3>{discoveries[discovery].title}</h3><p>{discoveries[discovery].text}</p><span className="found-item"><Check size={16} />{discoveries[discovery].item}</span><span className="sr-only" role="status">Discovered {discoveries[discovery].title}. {discoveries[discovery].text} {found.length} of {discoveries.length} found.</span></div>}
     <AvailabilityDialog kind={availability} onClose={closeAvailability} release={release} config={config} mobile={mobile} downloadAvailable={downloadAvailable} />
   </>;
 }

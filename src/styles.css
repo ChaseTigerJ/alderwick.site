@@ -60,3 +60,23 @@
   .discovery-toast{padding:22px;bottom:12px}
 }
 @media(max-width:350px){.store-buttons{gap:7px}.store-button{padding:9px;gap:6px}.store-button>svg{width:24px}.store-button strong{font-size:13px}.store-button small{font-size:6px}.drag-hint{font-size:9px}}
+
+/* Discovery belongs to the objects. A quiet alternate route appears for keyboard users. */
+.keyboard-discoveries{position:absolute;left:50%;bottom:65px;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap}
+.keyboard-discoveries:focus-within{transform:translateX(-50%);width:min(300px,calc(100vw - 40px));height:auto;padding:18px;clip:auto;clip-path:none;white-space:normal;background:var(--surface);border:1px solid var(--line);border-radius:9px;box-shadow:0 8px 30px #153e3226;z-index:6}
+.keyboard-discoveries>p{font-family:var(--serif);font-size:25px;margin-bottom:10px}
+.keyboard-discoveries ul{list-style:none;padding:0;margin:0;display:grid;gap:2px}
+.keyboard-discoveries button{width:100%;padding:10px 8px;text-align:left;background:transparent;border-radius:4px;font-size:12px}
+.keyboard-discoveries button:hover,.keyboard-discoveries button:focus-visible{background:var(--ink);color:var(--paper)}
+.keyboard-discoveries>span{display:block;font-size:10px;color:var(--muted);margin-top:10px}
+.discovery-progress{flex-wrap:wrap;gap:7px}
+.discovery-progress>span{width:32px;height:32px}
+.discovery-progress strong{white-space:nowrap}
+.page-snow{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:7;contain:strict;--snow-color:#fffefa;opacity:.8}
+.page-snow[data-night=true]{--snow-color:#edf3ee;opacity:.7}
+.page-snow i{position:absolute;left:var(--snow-left);top:-12px;display:block;width:var(--snow-size);height:var(--snow-size);border-radius:50%;background:var(--snow-color);box-shadow:0 0 2px #82908630;opacity:var(--snow-opacity);animation:page-snowfall var(--snow-time) var(--snow-delay) linear infinite;will-change:transform}
+.page-snow.is-paused i{animation-play-state:paused}
+@keyframes page-snowfall{from{transform:translate3d(0,-2vh,0)}to{transform:translate3d(var(--snow-drift),105vh,0)}}
+@media(max-width:480px){.discovery-progress strong{flex-basis:100%;margin:5px 0 0}.page-snow i:nth-child(n+19){display:none}}
+@media(prefers-reduced-motion:reduce){.page-snow{display:none}}
+.site-header>.nav-download{font-size:14px;font-weight:500}
