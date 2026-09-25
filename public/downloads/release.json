@@ -1,0 +1,9 @@
+{
+  "title": "Alderwick Portable Browser Edition",
+  "version": "2026.09.25",
+  "url": "./downloads/Alderwick-Portable-2026.09.25.zip",
+  "size": "11.0 MB",
+  "requirements": "Desktop browser with WebGL 2 + Python 3.8 or Node.js 18. Extract the ZIP and run the included launcher.",
+  "available": true,
+  "sha256": "6a5762cda0d3b25c649c235b0618f40d3a3a5144afc16ca34f9ae7c2292c62b5"
+}

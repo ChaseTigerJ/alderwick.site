@@ -1,0 +1,56 @@
+ALDERWICK — PORTABLE BROWSER EDITION
+
+Your settlement starts here.
+
+This download contains the actual compiled Alderwick game. It runs locally
+in your desktop browser. It is not a native app or an installer.
+
+REQUIREMENTS
+- A current desktop Chrome, Edge, Firefox or Safari with WebGL 2 enabled.
+- Python 3.8+ or Node.js 18+ installed and available in your terminal.
+- Internet is not required to play after downloading and extracting the ZIP.
+  Installing Python or Node initially requires a separate download.
+
+START PLAYING
+1. Extract the entire ZIP. Do not launch from inside the compressed archive.
+2. macOS: double-click Play-Alderwick.command.
+   Windows: double-click Play-Alderwick.cmd.
+   Linux: run sh Play-Alderwick.sh in the extracted folder.
+3. Open http://127.0.0.1:4186/ if the browser does not open automatically.
+4. Keep the terminal window open while playing. Stop with Ctrl+C afterward.
+
+If macOS blocks the launcher, open Terminal in the extracted folder and run:
+  sh Play-Alderwick.command
+You can also launch directly with:
+  python3 launch.py
+or:
+  node launch.mjs
+
+The small launcher serves files only on your computer's loopback address.
+It does not send the game, saves or your files to another server.
+
+SAVES
+Your browser stores settlements using IndexedDB at http://127.0.0.1:4186/.
+Always use that exact address and the same browser/profile to find your saves.
+Saves from the hosted game do not transfer automatically. Export your save
+from the hosted game's Saves menu, then import it in this local edition.
+Use Save/Export before changing browsers, deleting browser data, or upgrading.
+Private browsing may discard saves when the window closes.
+
+CONTROLS
+Start with New Settlement, customize your expedition, then Set sail.
+Use the in-game tutorial and Settings for controls and graphics options.
+Escape opens the pause menu. The game includes configurable survival threats.
+
+TROUBLESHOOTING
+- A blank or graphics error screen: enable hardware acceleration/WebGL, update
+  your browser and graphics drivers, then reopen the local address.
+- Port already in use: close the other Alderwick launcher and try again.
+- Do not open game/index.html directly: module loading needs the local server.
+- Downloaded-launcher file permissions may depend on your OS. Terminal commands
+  above work without changing executable permissions.
+
+CREDITS
+Created by Chase Johnston. Original game assets and code are copyright 2026
+Chase Johnston; included third-party software and assets retain their licenses.
+See game/credits/ and the in-game Credits screen for attribution.
