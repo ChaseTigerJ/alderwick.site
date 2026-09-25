@@ -25,7 +25,7 @@ The [National Park Service nomination for Trinity Church, Newport](https://prese
 
 Blender is Z-up with front -Y. glTF export converts to Y-up with front +Z. The island surface is at Y=0; water sits near Y=-0.975. Geometry is flat shaded and texture-free, with no runtime decoder extensions. Static parts are merged by material. Animated parts are merged only within their own pivot; the three cloth pennants, flexible ship rigging, and actual ship hull keep separate named geometry for deformation and clearance checks. All seventeen trees and both mast assemblies have independent root pivots; meshes remain merged by material within each pivot. The exported model retains named empties and glTF extras, which Three.js exposes as `userData`.
 
-The current shipping GLB contains **139 meshes, 19,923 triangles, and 1,638,420 bytes**, with no textures or decoder dependencies. The additional meshes preserve the tree and mast pivots, cloth and rigging deformation, the actual hull boundary, and independent actors. No texture or decoder dependency is added.
+The current shipping GLB contains **139 meshes, 20,227 triangles, and 1,648,304 bytes**, with no textures or decoder dependencies. The additional meshes preserve the tree and mast pivots, cloth and rigging deformation, the actual hull boundary, and independent actors. No texture or decoder dependency is added.
 
 `leaf_*` and `grass_*` materials identify seasonal vegetation. `roof_*` identifies roofs; `window_glow` identifies warm panes and lantern glass. Dedicated `shepherd_*`, `brass`, and `brass_dark` colors stay independent of seasonal vegetation. Material base colors are converted from sRGB swatches to linear space when authored.
 
@@ -114,15 +114,15 @@ Preview lights, camera, and water plane are created only after export and are ex
 
 ## Sail and rigging clearance
 
-The four shrouds per mast run entirely aft of the billowed square sails. Their upper endpoints attach to a visible collar at ±0.045 local X, 0.055 aft of the mast center; the deck attachments follow the hull’s interpolated width so even the aft pair stays on the tapered stern deck. This clears both the canvas surface and the upper yards. The jib’s trailing edge clears the forward mast, and the forestay terminates at a short projecting mast cleat instead of entering the spar.
+The four shrouds per mast run entirely aft of the billowed square sails. Their upper endpoints attach to a visible collar at ±0.045 local X, 0.055 aft of the mast center; the deck attachments follow the hull’s interpolated width so even the aft pair stays on the tapered stern deck. This clears both the canvas surface and the upper yards. The jib lies entirely ahead of the square sails’ maximum billow; its lowered head and tack attach to the forestay with short hanks. The upper square sails have a real 0.08-unit gap above the lower sails, including the sagged center of their foot. The forestay terminates at a short projecting mast cleat instead of entering the spar. Actual exported triangle-to-triangle clearance tests cover sail/sail and sail/wood interactions throughout the breeze, rather than checking only rope vertices.
 
-`ShipRigging_0`, `ShipRigging_1`, `ShipForestay`, and `ShipForesail` remain separate children of `MerchantShip`. Each exposes `mastNode`, `breezeBaseHeight`, and `breezeTopHeight`. Geometry is authored in ship-local coordinates before export; after export heights are local Y. Cache original positions, convert through the mesh-to-ship transform, and apply the corresponding mast’s rotation delta weighted from zero at/below the base height to one at the upper attachment. This pins the deck or bowsprit while the upper ties follow the mast. Ropes have twelve longitudinal sections to keep their small flex smooth.
+`ShipRigging_0`, `ShipRigging_1`, `ShipForestay`, and `ShipForesail` remain separate children of `MerchantShip`. Each exposes `mastNode`, `breezeBaseHeight`, and `breezeTopHeight`. Geometry is authored in ship-local coordinates before export; after export heights are local Y. Cache original positions, convert through the mesh-to-ship transform, and apply the corresponding mast’s rotation delta weighted from zero at/below the base height to one at the upper attachment. This pins the deck or bowsprit while the upper ties follow the mast. The jib and its forestay use the same height weights, keeping the intermediate hank connections aligned. Ropes have twelve longitudinal sections to keep their small flex smooth.
 
 | Flexible mesh | Mast | Fixed base Y | Upper attachment Y |
 | --- | --- | ---: | ---: |
 | `ShipRigging_0` | `ShipMast_0` | 0.43 | 2.55 |
 | `ShipRigging_1` | `ShipMast_1` | 0.43 | 2.90 |
 | `ShipForestay` | `ShipMast_0` | 0.85 | 2.74 |
-| `ShipForesail` | `ShipMast_0` | 0.88 | 2.49 |
+| `ShipForesail` | `ShipMast_0` | 0.85 | 2.74 |
 
-Tree and mast sway should stay much smaller than the existing ship rocking: the browser runtime caps combined rotation at roughly 0.24° for trees and 0.09° for masts. The animation clock remains frozen when reduced motion or the administrator’s animation setting disables motion.
+Tree and mast sway should stay much smaller than the existing ship rocking: the browser runtime caps combined rotation at roughly 0.9° for trees and 0.4° for masts. The animation clock remains frozen when reduced motion or the administrator’s animation setting disables motion.

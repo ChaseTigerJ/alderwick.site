@@ -435,7 +435,7 @@ def flexible_rope_mesh(name,cables,mast_node,base_height,top_height):
 
 for flag_index,(yy,top,w) in enumerate([(-.48,2.45,1.25),(.45,2.8,1.4)]):
  mast_name='ShipMast_'+str(flag_index);mast=empty(mast_name,(0,yy,.43));mast['kind']='mast';before=set(bpy.data.objects)
- beam('Tall mast',(0,yy,.32),(0,yy,top+.3),.035,'wood_light');sail(yy,.94,w,.82,.21);sail(yy,1.84,w*.7,.55,.12)
+ beam('Tall mast',(0,yy,.32),(0,yy,top+.3),.035,'wood_light');sail(yy,.94,w,.82,.21);sail(yy,1.94,w*.7,.50,.12)
  # Shrouds terminate on a real collar, outside the mast. Every rope stays
  # aft of the square canvas (whose backmost surface is yy-.04), so the
  # billowed fabric cannot cut through the lines from any camera angle.
@@ -451,12 +451,19 @@ for flag_index,(yy,top,w) in enumerate([(-.48,2.45,1.25),(.45,2.8,1.4)]):
    deck_width=next(ww+(nw-ww)*(deck_y-sy)/(ny-sy) for (sy,ww,zz),(ny,nw,nz) in zip(stations,stations[1:]) if sy<=deck_y<=ny)
    cables.append(((side*min(.40,deck_width-.012),deck_y,.43),(side*.045,yy+.055,top+.1),radius))
  flexible_rope_mesh('ShipRigging_'+str(flag_index),cables,mast_name,.43,top+.1)
-# The jib's trailing edge clears the forward mast by .04, and its luff stays
-# behind the forestay. Its bowsprit corner is pinned while the head follows
-# the mast, using the same inexpensive weighted deformation as the ropes.
-foresail=mesh('ShipForesail',[(0,-1.64,.88),(0,-.58,2.49),(0,-.56,1.02)],[(0,1,2)],'canvas')
-for key,value in {'mastNode':'ShipMast_0','breezeBaseHeight':.88,'breezeTopHeight':2.49}.items():foresail[key]=value
-flexible_rope_mesh('ShipForestay',[((0,-1.81,.85),(0,-.555,2.74),.01)],'ShipMast_0',.85,2.74)
+# The jib is wholly ahead of the square sail's maximum billow (-.73).
+# Its head is lower on the forestay so the leech can stay forward without
+# inventing a floating corner beside the mast. Short hanks visibly connect
+# head and tack to the stay; all three use identical height-weighted motion.
+# The upper square sails also have a real gap above the lower sail's yard:
+# the old upper sail's sagged foot dipped through the lower sail's head.
+foresail=mesh('ShipForesail',[(0,-1.70,.965),(0,-.87,2.25),(0,-.90,1.02)],[(0,1,2)],'canvas')
+for key,value in {'mastNode':'ShipMast_0','breezeBaseHeight':.85,'breezeTopHeight':2.74}.items():foresail[key]=value
+forestay_cables=[((0,-1.81,.85),(0,-.555,2.74),.01)]
+for yy,zz in [(-1.70,.965),(-.87,2.25)]:
+ stay_y=-1.81+1.255*(zz-.85)/(2.74-.85)
+ forestay_cables.append(((0,stay_y,zz),(0,yy,zz),.006))
+flexible_rope_mesh('ShipForestay',forestay_cables,'ShipMast_0',.85,2.74)
 ship_objects=set(bpy.data.objects)-start
 ship=empty('MerchantShip',(3.45,-5.20,-.88));ship.rotation_euler.z=-.55
 # The authored hull uses a waterline origin. Parenting before moving the group

@@ -35,6 +35,40 @@ test('all exported trees and masts sway very slightly without moving their roots
   maximum.forEach((angle, i) => assert.ok(angle > .0004, `${roots[i].name}: the breeze must move the tree or mast`));
 });
 
+test('the gentle breeze produces visible tip movement within a four-second visit', async () => {
+  const model = await fixture(), roots: THREE.Object3D[] = [];
+  model.traverse(object => { if (/^(TreeBreeze|ShipMast)_\d+$/.test(object.name)) roots.push(object); });
+  const tips = roots.map(root => {
+    let top = new THREE.Vector3(0, -Infinity, 0);
+    root.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      for (const point of vertices(object)) {
+        point.applyMatrix4(object.matrixWorld);
+        if (point.y > top.y) top = point;
+      }
+    });
+    return { rest: top.clone(), local: root.worldToLocal(top), distance: 0, pixels: 0 };
+  });
+  // Match the initial camera in a normal desktop hero. This catches a breeze
+  // that technically rotates nodes but is effectively invisible on the page.
+  const camera = new THREE.PerspectiveCamera(34, 1000 / 700, .1, 120);
+  camera.position.set(13, 13, 19); camera.lookAt(0, .7, 0); camera.updateMatrixWorld(true);
+  const breeze = createIslandBreeze(model);
+  for (let time = 0; time <= 4; time += .25) {
+    breeze.update(time); model.updateMatrixWorld(true);
+    roots.forEach((root, i) => {
+      const tip = tips[i], moved = root.localToWorld(tip.local.clone());
+      tip.distance = Math.max(tip.distance, moved.distanceTo(tip.rest));
+      const projected = moved.project(camera), original = tip.rest.clone().project(camera);
+      tip.pixels = Math.max(tip.pixels, Math.hypot((projected.x - original.x) * 500, (projected.y - original.y) * 350));
+    });
+  }
+  tips.forEach((tip, i) => {
+    assert.ok(tip.distance > .018, `${roots[i].name}: tip motion must be appreciable over four seconds`);
+    assert.ok(tip.pixels > .9 && tip.pixels < 2.5, `${roots[i].name}: tip motion should be visible but gentle at the normal view (${tip.pixels.toFixed(2)} pixels)`);
+  });
+});
+
 test('a frozen scene clock stops the breeze and resuming has no random jumps or drift', () => {
   const model = new THREE.Group(), tree = new THREE.Group(), mast = new THREE.Group();
   tree.name = 'TreeBreeze_0'; tree.position.set(4, 0, -2); tree.rotation.y = .8;
@@ -45,14 +79,14 @@ test('a frozen scene clock stops the breeze and resuming has no random jumps or 
   for (let frame = 0; frame < 100; frame++) breeze.update(20);
   [tree, mast].forEach((object, i) => assert.deepEqual(object.quaternion.toArray(), frozen[i]));
   const beforeResume = tree.quaternion.clone(); breeze.update(20 + 1 / 30);
-  assert.ok(tree.quaternion.angleTo(beforeResume) < .00006, 'resumption follows the same slow wind smoothly');
+  assert.ok(tree.quaternion.angleTo(beforeResume) < TREE_BREEZE_MAX_TILT * .025, 'one resumed frame must move less than 2.5% of the bounded tilt');
   breeze.update(0); [tree, mast].forEach((object, i) => assert.ok(object.quaternion.angleTo(original[i]) < 1e-7, 'rest transforms never accumulate drift'));
 });
 
 test('exported ship cables keep lower anchors pinned and upper ties attached during mast sway', async () => {
   const model = await fixture(), cables: THREE.Mesh[] = [];
-  model.traverse(object => { if (object instanceof THREE.Mesh && object.userData.mastNode && !object.name.includes('Foresail')) cables.push(object); });
-  assert.ok(cables.length >= 3, 'two sets of shrouds and a forestay are deformable');
+  model.traverse(object => { if (object instanceof THREE.Mesh && /^(ShipRigging_\d+|ShipForestay)$/.test(object.name) && object.userData.mastNode) cables.push(object); });
+  assert.equal(cables.length, 3, 'two sets of shrouds and a forestay are deformable');
   const resting = cables.map(mesh => ({ points: vertices(mesh), matrix: mesh.matrixWorld.clone() }));
   const breeze = createIslandBreeze(model);
   for (const time of [0, 3, 7, 12, 24, 47, 79, 121]) {
@@ -94,7 +128,7 @@ test('the mast breeze and flag ripple preserve each cloth hoist attachment', asy
 
 test('shrouds stay behind the square sails and clear of mast wood throughout the breeze', async () => {
   const model = await fixture(), breeze = createIslandBreeze(model);
-  for (let time = 0; time < 360; time += 3) {
+  for (let time = 0; time < 360; time += .5) {
     breeze.update(time); model.updateMatrixWorld(true);
     for (let index = 0; index < 2; index++) {
       const mast = model.getObjectByName(`ShipMast_${index}`)!;

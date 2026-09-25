@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
 // Even the combined gusts stay below these angles; this is a quiet harbor.
-export const TREE_BREEZE_MAX_TILT = THREE.MathUtils.degToRad(.24);
-export const MAST_BREEZE_MAX_TILT = THREE.MathUtils.degToRad(.09);
+export const TREE_BREEZE_MAX_TILT = THREE.MathUtils.degToRad(.9);
+export const MAST_BREEZE_MAX_TILT = THREE.MathUtils.degToRad(.4);
 
 type Sway = { object: THREE.Object3D; rest: THREE.Quaternion; inverseRest: THREE.Quaternion; phase: number; amplitude: number };
 type Rigging = {
@@ -42,11 +42,12 @@ export function createIslandBreeze(model: THREE.Object3D) {
   const windRotation = new THREE.Quaternion(), tilt = new THREE.Euler(0, 0, 0, 'XYZ');
   function update(time: number) {
     // The scene clock freezes for pause, reduced motion, disabled animation,
-    // and offscreen tabs. Shared slow waves give each tree a related breeze.
-    const wind = Math.sin(time * .31) * .66 + Math.sin(time * .17) * .34;
-    const crosswind = Math.sin(time * .23) * .7 + Math.sin(time * .11) * .3;
+    // and offscreen tabs. Related 8–14 second waves are visible in a short
+    // visit while keeping the harbor's breeze gentle rather than gusty.
+    const wind = Math.sin(time * .64) * .66 + Math.sin(time * .46) * .34;
+    const crosswind = Math.sin(time * .55) * .7 + Math.sin(time * .45) * .3;
     for (const sway of sways) {
-      const local = (Math.sin(time * .27 + sway.phase) - Math.sin(sway.phase)) * .5;
+      const local = (Math.sin(time * .77 + sway.phase) - Math.sin(sway.phase)) * .5;
       const strength = sway.amplitude === MAST_BREEZE_MAX_TILT ? .12 : .26;
       tilt.set(sway.amplitude * .82 * (wind * (1 - strength) + local * strength), 0, sway.amplitude * .52 * crosswind);
       windRotation.setFromEuler(tilt);

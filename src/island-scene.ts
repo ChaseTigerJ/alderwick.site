@@ -10,6 +10,8 @@ import { createIslandIdleMotion } from './island-idle';
 import { createIslandFlames } from './island-flames';
 import { createIslandFlags } from './island-flags';
 import { createIslandBreeze } from './island-breeze';
+import { createIslandLighting, renderIslandFrame } from './island-render';
+import { createIslandWater } from './island-water';
 import { createIslandEasterEggs } from './island-easter-eggs';
 import type { WorldSettings } from './site-config';
 import type { Season } from './Island';
@@ -46,12 +48,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   host.addEventListener('keydown', keyDown, true); window.addEventListener('keyup', keyUp);
   const onControlsChange = () => { sceneDirty = true; };
   controls.addEventListener('change', onControlsChange);
-  const sun = new THREE.DirectionalLight(0xffe4b8, 3); sun.position.set(-8, 16, 8); sun.castShadow = true;
-  const shadowSize = window.matchMedia('(pointer: coarse)').matches ? 1024 : 2048;
-  sun.shadow.mapSize.set(shadowSize, shadowSize);
-  Object.assign(sun.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, far: 50 }); sun.shadow.normalBias = .035; sun.shadow.bias = -.0002; scene.add(sun);
-  const ambient = new THREE.HemisphereLight(0xfff6de, 0x8d927c, 1.5); scene.add(ambient);
-  const rim = new THREE.DirectionalLight(0xb8d6d0, 1.2); rim.position.set(5, 5, -8); scene.add(rim);
+  const lighting = createIslandLighting(scene, window.matchMedia('(pointer: coarse)').matches);
   function removeControls() {
     removeDrag();
     controls.removeEventListener('change', onControlsChange); controls.dispose();
@@ -59,8 +56,8 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     host.removeEventListener('keydown', keyDown, true); window.removeEventListener('keyup', keyUp);
   }
   let model;
-  try { model = await new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/alderwick-island.glb`); }
-  catch (error) { removeControls(); renderer.dispose(); canvas.remove(); throw error; }
+  try { model = await new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/alderwick-island.glb?v=${__ISLAND_MODEL_VERSION__}`); }
+  catch (error) { removeControls(); lighting.dispose(); renderer.dispose(); canvas.remove(); throw error; }
   scene.add(model.scene); model.scene.updateMatrixWorld(true);
   const materials: { material: THREE.MeshStandardMaterial; base: THREE.Color; name: string }[] = [];
   const seen = new Set<THREE.Material>();
@@ -111,9 +108,15 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
   const starPoints: number[] = [];
   for (let i = 0; i < 50; i++) { const a = i * 2.3999; starPoints.push(Math.cos(a) * (7 + i % 6), 4 + (i % 9) * .6, Math.sin(a) * (7 + i % 6)); }
   const stars = new THREE.BufferGeometry(); stars.setAttribute('position', new THREE.Float32BufferAttribute(starPoints, 3));
-  const starMat = new THREE.PointsMaterial({ color: 0xffe4a0, size: .065, transparent: true, opacity: 0 }); scene.add(new THREE.Points(stars, starMat));
+  const starMat = new THREE.PointsMaterial({ color: 0xffe4a0, size: .065, transparent: true, opacity: 0 }); const starField = new THREE.Points(stars, starMat); scene.add(starField);
+  const reflectionExclusions = [
+    water, sea, shadow, starField, ...smoke.map(puff => puff.mesh),
+    ...['WinterSnowglobe', 'IrregularShoreFoam', 'CoastalWavelets', 'DockPostFoam', 'MerchantShipWaterlineFoam', 'ShoreSplashes']
+      .map(name => scene.getObjectByName(name)).filter((object): object is THREE.Object3D => !!object),
+  ];
+  const reflection = createIslandWater(scene, { excluded: reflectionExclusions });
   let width = 1, height = 1, disposed = false, frame = 0, t = 0, last = performance.now(), lastSeason: Season | '' = '';
-  let nightMix = state().night ? 1 : 0, visible = true, lastRender = 0, lastShadow = -1, lastAction = -1, viewScale = 1, lastRustle = -100;
+  let nightMix = state().night ? 1 : 0, visible = true, lastRender = 0, lastAction = -1, viewScale = 1, lastRustle = -100;
   const observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; sceneDirty = true; }, { rootMargin: '100px' }); observer.observe(host);
   const resize = new ResizeObserver(() => {
     width = host.clientWidth; height = host.clientHeight; if (!width || !height) return;
@@ -124,7 +127,8 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     // Offset projection retains the island's right-hand composition without clipping it at the text column.
     if (window.innerWidth > 800) camera.setViewOffset(width, height, -width * .16, 0, width, height);
     else camera.clearViewOffset();
-    camera.updateProjectionMatrix(); renderer.setSize(width, height); sceneDirty = true;
+    camera.updateProjectionMatrix(); renderer.setSize(width, height);
+    reflection.resize(width, height, renderer.getPixelRatio(), window.matchMedia('(pointer: coarse)').matches); sceneDirty = true;
   }); resize.observe(host);
   let lastWorldSettings: WorldSettings | null = null;
   const dayWater = new THREE.Color(0x62a9a2), nightWater = new THREE.Color(0x183749);
@@ -161,8 +165,7 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     if (!motion && !controlsChanged && !sceneDirty && !lightChanging && lastSeason === s.season) return;
     sceneDirty = false;
     nightMix = THREE.MathUtils.damp(nightMix, s.night ? 1 : 0, s.reducedMotion ? 100 : 3, delta);
-    sun.intensity = THREE.MathUtils.lerp(3, .35, nightMix); sun.color.setRGB(1 - nightMix * .42, .86 - nightMix * .16, .68 + nightMix * .32);
-    ambient.intensity = THREE.MathUtils.lerp(1.5, .48, nightMix); ambient.color.set(s.night ? 0xadc5ff : 0xfff6de); rim.intensity = THREE.MathUtils.lerp(1.2, .9, nightMix);
+    lighting.update(nightMix);
     waterMat.color.copy(dayWater).lerp(nightWater, nightMix); starMat.opacity = s.worldSettings.effectsEnabled ? nightMix * .8 : 0;
     if (lastSeason !== s.season) {
       lastSeason = s.season;
@@ -192,8 +195,8 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     life.update(delta, motion, s.season === 'winter', camera);
     atmosphere.update(delta, motion, s.season, nightMix);
     easterEggs.update(delta, motion, s.season);
-    if (t - lastShadow > .12 || lastShadow < 0) { renderer.shadowMap.needsUpdate = true; lastShadow = t; }
-    renderer.render(scene, camera);
+    reflection.update(t, nightMix, s.worldSettings.effectsEnabled);
+    renderIslandFrame(renderer, scene, camera, () => reflection.capture(renderer, camera));
   }
   frame = requestAnimationFrame(animate);
   return {
@@ -201,10 +204,10 @@ export async function createIsland(host: HTMLDivElement, state: () => State, dis
     zoom(amount) { activity(); offset.copy(camera.position).sub(controls.target).multiplyScalar(amount).clampLength(10, 35); camera.position.copy(controls.target).add(offset); controls.update(); sceneDirty = true; },
     reset() { activity(); controls.target.set(0, .7, 0); camera.position.set(13, 13, 19).sub(controls.target).multiplyScalar(viewScale).add(controls.target); controls.update(); sceneDirty = true; },
     dispose() {
-      disposed = true; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); removeInteractions(); bellChime.dispose(); removeControls();
+      disposed = true; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); removeInteractions(); bellChime.dispose(); removeControls(); reflection.dispose();
       const geometries = new Set<THREE.BufferGeometry>(), disposableMaterials = new Set<THREE.Material>();
       scene.traverse(obj => { if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) { geometries.add(obj.geometry); for (const material of Array.isArray(obj.material) ? obj.material : [obj.material]) disposableMaterials.add(material); } });
-      geometries.forEach(geometry => geometry.dispose()); disposableMaterials.forEach(material => material.dispose()); renderer.dispose(); canvas.remove();
+      geometries.forEach(geometry => geometry.dispose()); disposableMaterials.forEach(material => material.dispose()); lighting.dispose(); renderer.dispose(); canvas.remove();
     },
   };
 }
