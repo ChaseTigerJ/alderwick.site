@@ -74,7 +74,7 @@ export default function App() {
       </section>}
       <section className="closing-section" aria-labelledby="closing-title"><TreeEvergreen size={33} weight="duotone" /><p className="eyebrow">THE SHORE IS WAITING</p><h2 id="closing-title">Make yourself<br /><em>at home.</em></h2>{adventureCta}<p>Alderwick · A little world with a life of its own</p></section>
     </main>
-    <footer className="site-footer"><a className="footer-wordmark" href="#">Alderwick</a><p>An independent world, made with care.</p><span>© {new Date().getFullYear()} Alderwick</span></footer>
+    <footer className="site-footer"><a className="footer-wordmark" href="#">Alderwick</a><p>An independent world, made with care. <a href="/credits.html">Art credits</a></p><span>© {new Date().getFullYear()} Alderwick</span></footer>
     {worldSettings.discoveriesEnabled && discovery !== null && <div className="discovery-toast" role="region" aria-label="Island discovery"><button className="icon-button toast-close" aria-label="Close discovery" onClick={() => setDiscovery(null)}><X size={18} /></button><p className="eyebrow">LITTLE DISCOVERY {discoveries[discovery].icon}</p><h3>{discoveries[discovery].title}</h3><p>{discoveries[discovery].text}</p><span className="found-item"><Check size={16} />{discoveries[discovery].item}</span><span className="sr-only" role="status">Discovered {discoveries[discovery].title}. {discoveries[discovery].text} {found.length} of {discoveries.length} found.</span></div>}
     <AvailabilityDialog kind={availability} onClose={closeAvailability} release={release} config={config} mobile={mobile} downloadAvailable={downloadAvailable} />
   </>;

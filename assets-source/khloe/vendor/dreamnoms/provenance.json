@@ -1,0 +1,15 @@
+{
+  "title": "Stylized Low Poly German Shepherd",
+  "author": "DreamNoms",
+  "source": "https://sketchfab.com/3d-models/stylized-low-poly-german-shepherd-18d8fbe184c5448283762893b6ea9752",
+  "license": "CC-BY-4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "download_mirror": "https://huggingface.co/datasets/fernandotonon/QtMeshEditor-motion-corpus/tree/369017d2b1d77ecdd44fb6ea9bd0c131be952253/raw/sketchfab/Stylized_Low_Poly_German_Shepherd_18d8fbe1",
+  "retrieved": "2026-09-25",
+  "notes": "The mirror preserves the source license, original model ID, 5 material meshes, and all 12 named animations. Source binary could not be compared with an authenticated Sketchfab download.",
+  "sha256": {
+    "license.txt": "34a1a9db58abc3999959306bbbdf21c728419c3fb310b46df2fa3626aecb5cfc",
+    "scene.gltf": "4493cec55cae9146d22184338f295a7686cc7a03c171d46e0f76865a743f7d8c",
+    "scene.bin": "fc3b4bbae301d5cc5b1f86d8ead2f7bf5e5d91dab00b98b422d3604a3db038f3"
+  }
+}

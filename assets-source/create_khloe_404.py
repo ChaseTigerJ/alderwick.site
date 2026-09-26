@@ -15,7 +15,7 @@ scene.render.fps=30
 rig=bpy.data.objects['KhloeArmature']
 rig.animation_data.action=bpy.data.actions['KhloeSitCurious']
 rig.data.pose_position='POSE'
-scene.frame_set(21) # 0.7s: grounded sit and approximately 14-degree head tilt.
+scene.frame_set(21) # 0.7s: grounded sit and 12-degree head tilt.
 bpy.context.view_layer.update()
 scene.render.engine='CYCLES'
 scene.cycles.samples=96

@@ -1,8 +1,8 @@
 # Alderwick harbor diorama
 
-The harbor geometry is authored procedurally in Blender. Khloé uses a refined, skinned German Shepherd based on Quaternius’s CC0 model; see [character sources and provenance](../docs/KHLOE.md).
+The harbor geometry is authored procedurally in Blender. Khloé uses DreamNoms’s animated, faceted German Shepherd under CC BY 4.0; see [character sources and provenance](../docs/KHLOE.md).
 
-- `khloe/`: character source, rig, authored animation clips, build script and original CC0 asset provenance.
+- `khloe/`: character source, rig, authored animation clips, build script and original CC BY asset provenance.
 - `create_island.py`: deterministic construction/export script (seed 41).
 - `alderwick-island.blend`: editable scene with individual building parts, joints, and effect anchors.
 - `../public/models/alderwick-island.glb`: shipping model, merged by material within each independently animated group.
@@ -129,4 +129,4 @@ Tree and mast sway should stay much smaller than the existing ship rocking: the 
 
 ## Khloé’s 404 portrait
 
-`create_khloe_404.py` reads `khloe/khloe.blend` and samples `KhloeSitCurious` at 0.7 seconds, with grounded forepaws, folded hind legs, and an approximately 14-degree head tilt. It leaves the island source and shipping GLB unchanged. Run Blender in the repository root with `--background --python assets-source/create_khloe_404.py`, then encode the rendered PNG with Pillow using quality 94, method 6, and exact alpha preservation. The shipping `public/images/khloe-404.webp` is 1000×1100 RGBA with fully transparent borders. The page supplies the soft contact shadow.
+`create_khloe_404.py` reads `khloe/khloe.blend` and samples `KhloeSitCurious` at 0.7 seconds, with grounded forepaws, folded hind legs, and a 12-degree head tilt. It leaves the island source and shipping GLB unchanged. Run Blender in the repository root with `--background --python assets-source/create_khloe_404.py`, then encode the rendered PNG with Pillow using quality 94, method 6, and exact alpha preservation. The shipping `public/images/khloe-404.webp` is 1000×1100 RGBA with fully transparent borders. The page supplies the soft contact shadow.

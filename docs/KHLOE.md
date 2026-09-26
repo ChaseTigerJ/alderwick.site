@@ -1,25 +1,23 @@
 # Khloé: character source and animation
 
-Khloé is Alderwick’s German Shepherd companion. Her website character uses one articulated skin for both the island and the seated 404 portrait, with a pink collar and brass tag. The collar and eyes are separate details; the body, neck, muzzle and upright ears share continuous geometry.
+Khloé uses the exact **Stylized Low Poly German Shepherd** selected by the site owner, created by **DreamNoms**, under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-## Reference and source
+[Original model and author](https://sketchfab.com/3d-models/stylized-low-poly-german-shepherd-18d8fbe184c5448283762893b6ea9752). The original glTF, binary, license and pinned download receipt are in `assets-source/khloe/vendor/dreamnoms/`. They came from a public CC-BY redistribution in the QtMeshEditor motion corpus. The receipt records exact hashes and distinguishes mirror verification from an unavailable authenticated source comparison.
 
-The design follows the [American Kennel Club’s German Shepherd standard](https://images.akc.org/pdf/breeds/standards/GermanShepherdDog.pdf): a lean, longer-than-tall silhouette, a long tapered muzzle, upright ears with substantial roots, and almond-shaped eyes. [Bethesda’s account of River, the real dog behind Dogmeat](https://bethesda.net/en-US/news/fallout-4-dogmeat-and-other-companions), informed the emphasis on attentive expression and companion behavior. No Fallout models or textures are used.
+The original model’s anatomy, attached ears, broad muzzle, faceted coat, skeleton and twelve animations are preserved. Alderwick adds amber eyes with small highlights, a pink collar and brass tag. All added details are bound through the source skeleton’s inverse pose; they follow the head and neck rather than floating beside them. The model is normalized to the island’s scale without changing its proportions.
 
-The mesh and skeleton start from Quaternius’s German Shepherd in the [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html), released by its author under CC0. The adapted Blender source and reproducible character script are in `assets-source/khloe/`. The original model, included license, download provenance and checksums are retained alongside them. The author’s download host was quota-blocked during development, so the source copy came from a pinned public redistribution mirror; the receipt distinguishes verified file metadata from an unavailable author-hosted binary hash comparison.
+`build_khloe.py` imports the vendored model, adds the details, and saves `khloe.blend`. The editable file retains all twelve original `DreamNoms_*` actions. Five runtime clips are sampled from those original performances:
 
-## Integration
-
-The island generator appends the character’s source objects and animation actions. Character skins bypass static material batching, preserving bone weights and hierarchy. The `Khloe` root controls movement around the safe clearing; skeletal clips control the body. `src/khloe-animation.ts` blends between authored clips using the island’s existing clock. Paused, offscreen and reduced-motion states do not start a separate animation loop. Discoveries play once, and repeated clicks during the performance do not stack.
-
-The portrait renderer poses the same character and renders a transparent image for the standalone 404 page. Its five-second return to the homepage remains independent of artwork loading. The build versions both the island model and portrait by content so returning visitors receive the matching assets.
-
-| Clip | Duration | Purpose |
+| Clip | Source | Use |
 | --- | --- | --- |
-| `KhloeIdle` | 4 seconds | Attentive resting motion and tail movement. |
-| `KhloeWalk` | 2.2 seconds | Articulated walking cycle while the island root follows its path. |
-| `KhloeSniff` | 3.2 seconds | Lowered head and an inquisitive pause. |
-| `KhloePlay` | 4.7 seconds | One play bow, tail wag, and curious head tilt after a discovery. |
-| `KhloeSitCurious` | 4 seconds | Seated companion pose; the 404 portrait samples 0.7 seconds. |
+| `KhloeIdle` | Idle1 | Resting tail and head movement |
+| `KhloeWalk` | WalkCycle | Roaming, retimed to a relaxed 1.6-second stride |
+| `KhloeSniff` | IdleEarTwitch | Inquisitive pause; legacy runtime name, no new sniff animation |
+| `KhloePlay` | SitDown → SitScratchEar → StandUp | One bounded 4.7-second discovery |
+| `KhloeSitCurious` | IdleSit, with a 12-degree head roll | Seated 404 portrait |
 
-The face, collar and paw details inherit interpolated weights from the underlying coat triangles. When changing proportions, rebuild their fit and weights together through `build_khloe.py`; moving these details independently can make them slide during animation. Rebuild the island and portrait afterward using the commands in [the asset source guide](../assets-source/README.md).
+The island source appends the `Khloe*` objects and actions and excludes the character from static material batching. The `Khloe` root moves along the safe clearing path; the skeleton supplies the performance. The existing shared clock, crossfades, reduced-motion handling, repeated-click debounce and five-second snow-print expiry remain intact.
+
+The 404 portrait comes from the same editable character, not a separately drawn interpretation. The 404 still returns home after five seconds. Content hashes invalidate the island and portrait caches on each build.
+
+Visible attribution is available from both the homepage and the 404 page through `/credits.html`. Retain that credit and the source license when redistributing the model or derived renders.

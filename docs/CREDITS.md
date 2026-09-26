@@ -2,7 +2,7 @@
 
 - Alderwick game, characters and existing brand direction: Chase Johnston.
 - Website harbor diorama: original Blender geometry created for this project; editable source and generation script in `assets-source/`.
-- Khloé’s character mesh and skeleton: adapted from Quaternius’s [German Shepherd, Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html), CC0. Reworked anatomy, coat, facial details, collar, poses and integration are documented in [KHLOE.md](KHLOE.md).
+- Khloé: adapted from [Stylized Low Poly German Shepherd](https://sketchfab.com/3d-models/stylized-low-poly-german-shepherd-18d8fbe184c5448283762893b6ea9752) by [DreamNoms](https://sketchfab.com/DreamNoms), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Original anatomy, rig and animations; added eyes and collar, adjusted scale, combined clips and rendered a seated portrait. See [KHLOE.md](KHLOE.md).
 - The site’s diorama is promotional artwork, not a gameplay screenshot.
 - Cormorant Garamond and DM Sans fonts: SIL Open Font License, distributed through Fontsource.
 - Phosphor Icons: MIT license.
