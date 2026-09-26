@@ -6,6 +6,8 @@ from pathlib import Path
 import math
 import bpy
 from mathutils import Vector, Matrix, Quaternion
+from mathutils.bvhtree import BVHTree
+from mathutils.geometry import barycentric_transform
 
 HERE = Path(__file__).resolve().parent
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -52,19 +54,96 @@ def bind(ob, bone_name):
     modifier=ob.modifiers.new('Khloe character skin','ARMATURE');modifier.object=rig
     return ob
 
-def eye_piece(name, center, radius, mat, angle):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12,ring_count=8,location=center)
-    ob=bpy.context.object;ob.name=name;ob.scale=radius;ob.rotation_euler.z=angle
-    ob.data.materials.append(mat)
-    return bind(ob,'spine.011_metarig')
-for side in (-1,1):
-    center=Vector((side*1.62,-7.18,12.00));angle=side*.26
-    front=Vector((side*math.sin(.26),-math.cos(.26),0))
-    eye_piece('KhloeEyeSocket',center,(.86,.20,.87),ink,angle)
-    eye_piece('KhloeEyeWhite',center+front*.12,(.73,.15,.74),cream,angle)
-    eye_piece('KhloeEyeIris',center+front*.23+Vector((-side*.07,0,-.035)),(.60,.095,.64),amber,angle)
-    eye_piece('KhloeEyePupil',center+front*.31+Vector((-side*.07,0,-.035)),(.35,.055,.46),pupil,angle)
-    eye_piece('KhloeEyeSpark',center+front*.36+Vector((-.13,0,.22)),(.13,.035,.13),glint,angle)
+# Fit each eye to the actual posed face. The source's forehead includes ear
+# weights, so assigning the eyes only to the head causes visible separation.
+# Sample the coat triangles and transfer their blended weights to every vertex.
+face_vertices, face_triangles, face_weights = [], [], []
+depsgraph=bpy.context.evaluated_depsgraph_get()
+for ob in list(bpy.data.objects):
+    if ob.type != 'MESH':continue
+    evaluated=ob.evaluated_get(depsgraph);mesh=evaluated.to_mesh()
+    mesh.calc_loop_triangles();start=len(face_vertices)
+    face_vertices.extend(evaluated.matrix_world@v.co for v in mesh.vertices)
+    face_triangles.extend(tuple(start+i for i in triangle.vertices) for triangle in mesh.loop_triangles)
+    face_weights.extend({ob.vertex_groups[g.group].name:g.weight for g in v.groups} for v in ob.data.vertices)
+    evaluated.to_mesh_clear()
+face_surface=BVHTree.FromPolygons(face_vertices,face_triangles,all_triangles=True)
+rig_inverse=rig.matrix_world.inverted()
+skin_matrices={bone.name:bone.matrix@bone.bone.matrix_local.inverted() for bone in rig.pose.bones}
+
+def on_face(x,z,lift):
+    point,normal,index,_=face_surface.ray_cast(Vector((x,-25,z)),Vector((0,1,0)))
+    assert point is not None and point.y < -6, 'Eye escaped the front cheek surface'
+    triangle=face_triangles[index]
+    bary=barycentric_transform(point,*(face_vertices[i] for i in triangle),Vector((1,0,0)),Vector((0,1,0)),Vector((0,0,1)))
+    weights={}
+    for vertex,amount in zip(triangle,bary):
+        for name,weight in face_weights[vertex].items():weights[name]=weights.get(name,0)+max(0,amount)*weight
+    # Four influences are the shipping glTF contract. Invert this same blend
+    # when finding the bind-space position, rather than one approximate bone.
+    weights=dict(sorted(weights.items(),key=lambda item:item[1],reverse=True)[:4])
+    total=sum(weights.values());weights={name:value/total for name,value in weights.items()}
+    blend=Matrix(((0,0,0,0),)*4)
+    for name,weight in weights.items():blend+=skin_matrices[name]*weight
+    if normal.y>0:normal.negate()
+    return blend.inverted() @ rig_inverse @ (point+normal*lift),weights
+
+def fitted_eye(side):
+    center=Vector((side*1.42,11.66))
+    # One continuous eye surface with colored rings: no overlapping eyeball,
+    # iris and pupil shells that can intersect when the forehead deforms.
+    bands=[((0,0),pupil),((.27,.34),pupil),((.455,.475),amber),((.55,.515),cream),((.62,.58),ink)]
+    rings=[(Vector((0,0)),0)]
+    for band in range(1,len(bands)):
+        for step in range(1,5):
+            radius=Vector(bands[band-1][0]).lerp(Vector(bands[band][0]),step/4)
+            rings.append((radius,band-1))
+    materials=[pupil,amber,cream,ink]
+    positions,weights,faces,face_materials=[],[],[],[]
+    segments=32
+    def point(u,v):
+        x,z=center+Vector((u,v))
+        radial=(u/.62)**2+(v/.58)**2
+        lift=.025+.19*max(0,1-radial)
+        position,weight=on_face(x,z,lift)
+        positions.append(position);weights.append(weight)
+    point(0,0)
+    for radius,_ in rings[1:]:
+        for segment in range(segments):
+            angle=2*math.pi*segment/segments
+            point(math.cos(angle)*radius.x,math.sin(angle)*radius.y)
+    for segment in range(segments):
+        faces.append((0,1+segment,1+(segment+1)%segments));face_materials.append(0)
+    for ring in range(len(rings)-2):
+        inner=1+ring*segments;outer=inner+segments
+        for segment in range(segments):
+            nxt=(segment+1)%segments
+            faces.extend([(inner+segment,outer+segment,outer+nxt),(inner+segment,outer+nxt,inner+nxt)])
+            face_materials.extend([rings[ring+2][1]]*2)
+    # An inlaid glint shares the same surface; classify a small patch of pupil
+    # faces instead of adding another floating piece of geometry.
+    materials.append(glint)
+    for i,face in enumerate(faces):
+        if face_materials[i] != 0:continue
+        # Reconstruct patch coordinates from their ring/segment positions.
+        coords=[]
+        for vertex in face:
+            if vertex==0:coords.append(Vector((0,0)));continue
+            ring=(vertex-1)//segments+1;angle=2*math.pi*((vertex-1)%segments)/segments
+            radius=rings[ring][0];coords.append(Vector((math.cos(angle)*radius.x,math.sin(angle)*radius.y)))
+        midpoint=sum(coords,Vector((0,0)))/3
+        if ((midpoint.x+.11)/.09)**2+((midpoint.y-.15)/.105)**2<1:face_materials[i]=4
+    mesh=bpy.data.meshes.new('KhloeFittedEyeMesh');mesh.from_pydata(positions,[],faces);mesh.update()
+    ob=bpy.data.objects.new('KhloeEyeSocket'+('Left' if side<0 else 'Right'),mesh);scene.collection.objects.link(ob);ob.parent=rig
+    groups={name:ob.vertex_groups.new(name=name) for name in sorted({name for weight in weights for name in weight})}
+    for vertex,weight in enumerate(weights):
+        for bone,amount in weight.items():groups[bone].add([vertex],amount,'REPLACE')
+    modifier=ob.modifiers.new('Khloe face skin','ARMATURE');modifier.object=rig
+    for mat in materials:mesh.materials.append(mat)
+    for face,index in zip(mesh.polygons,face_materials):face.material_index=index;face.use_smooth=True
+    ob['faceFittedEye']=True
+    return ob
+for side in (-1,1):fitted_eye(side)
 bpy.ops.mesh.primitive_torus_add(major_segments=16,minor_segments=6,major_radius=2.18,minor_radius=.29,location=(0,-2.75,8.00),rotation=(math.pi/2,0,0))
 collar=bpy.context.object;collar.name='KhloePinkCollar';collar.data.materials.append(pink);bind(collar,'spine.009_metarig')
 bpy.ops.mesh.primitive_uv_sphere_add(segments=8,ring_count=4,location=(0,-3.05,5.69))
@@ -74,7 +153,7 @@ for ob in list(bpy.data.objects):
     if not ob.name.startswith('Khloe'):ob.name='Khloe'+ob.name
     ob['khloeCharacter']=True
     if ob.type=='MESH':
-        for face in ob.data.polygons:face.use_smooth=False
+        for face in ob.data.polygons:face.use_smooth=bool(ob.get('faceFittedEye'))
 rig.name='KhloeArmature'
 for mat in bpy.data.materials:
     if not mat.name.startswith('Khloe'):mat.name='KhloeSource_'+mat.name

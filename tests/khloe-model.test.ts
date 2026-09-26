@@ -69,3 +69,47 @@ test('all character poses remain finite and at island scale, with no detached or
   }
   mixer.stopAllAction(); mixer.uncacheRoot(dog);
 });
+
+test('the smaller eyes stay against the actual face through every performance', async () => {
+  const { dog, skins, animations } = await character();
+  dog.position.set(0, 0, 0); dog.rotation.set(0, 0, 0);
+  const eyes = skins.filter(skin => {
+    let node: THREE.Object3D | null = skin;
+    while (node && node !== dog) {
+      if (node.userData.faceFittedEye) return true;
+      node = node.parent;
+    }
+    return false;
+  });
+  const coat = skins.filter(skin => skin.name.startsWith('KhloeCube_'));
+  assert.ok(eyes.length >= 2 && coat.length > 0, 'fitted eyes and original face are exported');
+  const mixer = new THREE.AnimationMixer(dog), point = new THREE.Vector3(), closest = new THREE.Vector3();
+  let largestGap = 0;
+  for (const clip of animations.filter(clip => clip.name.startsWith('Khloe'))) {
+    mixer.stopAllAction();
+    const action = mixer.clipAction(clip).setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play();
+    for (let frame = 0; frame <= 12; frame++) {
+      action.time = clip.duration * frame / 12; mixer.update(0); dog.updateMatrixWorld(true);
+      const triangles: THREE.Triangle[] = [];
+      for (const skin of coat) {
+        const vertices = Array.from({ length: skin.geometry.getAttribute('position').count }, (_, index) =>
+          skin.getVertexPosition(index, new THREE.Vector3()).applyMatrix4(skin.matrixWorld));
+        const indices = skin.geometry.index;
+        for (let i = 0; i < (indices?.count ?? vertices.length); i += 3) {
+          triangles.push(new THREE.Triangle(...[0, 1, 2].map(j => vertices[indices ? indices.getX(i + j) : i + j]) as [THREE.Vector3, THREE.Vector3, THREE.Vector3]));
+        }
+      }
+      for (const eye of eyes) {
+        for (let vertex = 0; vertex < eye.geometry.getAttribute('position').count; vertex += 16) {
+          eye.getVertexPosition(vertex, point).applyMatrix4(eye.matrixWorld);
+          let distance = Infinity;
+          for (const triangle of triangles) distance = Math.min(distance, triangle.closestPointToPoint(point, closest).distanceToSquared(point));
+          largestGap = Math.max(largestGap, Math.sqrt(distance));
+          assert.ok(distance < .016 ** 2, `${clip.name}: eye separates from the face by ${Math.sqrt(distance).toFixed(4)}`);
+        }
+      }
+    }
+  }
+  assert.ok(largestGap > 0, 'eye remains a shallow visible surface, not missing geometry');
+  mixer.stopAllAction(); mixer.uncacheRoot(dog);
+});
