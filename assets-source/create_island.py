@@ -487,7 +487,7 @@ for ob in target.objects:
  if ob:
   bpy.context.collection.objects.link(ob)
   ob['khloeCharacter']=True
-khloe=bpy.data.objects['Khloe'];khloe.location=(-.74,-1.65,0);khloe.scale=(.86,.86,.86)
+khloe=bpy.data.objects['Khloe'];khloe.location=(-.74,-1.65,0);khloe.scale=(.516,.516,.516)
 # Keep only the harbor lamp; remove the post crowding Fisher cottage entirely.
 for x,y in [(1.38,-2.58)]:
  anchor('LanternLight',(x,y,1.02))

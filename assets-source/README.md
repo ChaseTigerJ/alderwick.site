@@ -38,7 +38,7 @@ Positions refer to the exported Y-up GLB. Preserve each node's authored rotation
 
 | Node | Contract |
 | --- | --- |
-| `Khloe` | Root at `(-0.74, 0, 1.65)`, uniform scale 0.86, forward +Z. |
+| `Khloe` | Root at `(-0.74, 0, 1.65)`, uniform scale 0.516 (40% smaller), forward +Z. |
 | Khloé’s armature and skinned meshes | Deform through exported animation clips; never rotate separate primitive limbs or merge the skin into static batches. |
 | `MerchantShip` | Waterline root at `(3.45, -0.88, 5.20)`, authored Y heading -0.55, **uniform scale 1.48** (32% larger than the previous 1.12). Hull, sails, rigging, flags, and light anchors stay parented here. |
 | `ShipMast_0`, `ShipMast_1` | Fore/main mast pivots at ship-local `(0, 0.43, 0.48)` and `(0, 0.43, -0.45)`. Mast, yards, square sails, pennant, and attachment collars move together. Preserve their authored local transforms. |
@@ -59,7 +59,7 @@ Positions refer to the exported Y-up GLB. Preserve each node's authored rotation
 | `GraveHandAnchor` | World `(1.08, 0.025, -3.20)`, lawn in front of the eastern headstone behind the church. |
 | `BackIslandGhostAnchor` | World `(-1.8, 0, -3.55)` on the rear lawn beyond the tree canopies. The ±0.50 X / ±0.10 Z loop has at least 0.20 center clearance from the cliff edge and 0.18 clearance from solid scenery. |
 
-Khloé’s `KhloeIdle`, `KhloeWalk`, `KhloeSniff`, `KhloePlay` and `KhloeSitCurious` clips share one character. The website controls her path with the root, blends the skeletal poses and preserves reduced-motion behavior. The 404 renderer uses the same skin and seated pose. See [character documentation](../docs/KHLOE.md).
+Khloé’s `KhloeIdle`, `KhloeWalk`, `KhloeSniff`, `KhloePlay` and `KhloeSitCurious` clips share one character. The website controls her path with the root, blends the skeletal poses and integrated brow shapes, and preserves reduced-motion behavior. The character has no added eye meshes, collar or tag. The 404 renderer uses the same skin and seated pose. See [character documentation](../docs/KHLOE.md).
 
 Fisher cottage has a **real 0.54-unit-wide entry opening**, from Y=0.17 to Y=1.08. Its walls, siding, and lower timber are split around the opening. The 0.50-by-0.91-unit door leaf is separately grouped; there is no solid wall behind it. A dark interior lies farther inside. This clearance accommodates the approximately 0.82-unit-tall Pip visitor. The mailbox is mounted below the right sash; that window's herb box is removed.
 

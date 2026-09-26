@@ -9,6 +9,8 @@ export const PAWPRINT_LIFETIME = 5;
 export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D, clips: THREE.AnimationClip[] = []) {
   const visitor = createVillageVisitor(scene, model);
   const dog = model.getObjectByName('Khloe');
+  const dogScale = typeof dog?.userData.locomotionScale === 'number' ? dog.userData.locomotionScale : 1;
+  const pawOffsets = [[.245, .08], [-.24, .10]].map(pair => pair.map(value => value * dogScale));
   const character = dog ? createKhloeAnimation(dog, clips) : undefined;
   const boat = model.getObjectByName('MerchantShip');
   const boatBase = boat?.position.clone();
@@ -36,6 +38,7 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D, clip
     const toe = new THREE.CircleGeometry(.015, 6); toe.rotateX(-Math.PI / 2); toe.translate(x, 0, z); pieces.push(toe);
   }
   const pawGeometry = mergeGeometries(pieces); pieces.forEach(piece => piece.dispose());
+  pawGeometry.scale(dogScale, dogScale, dogScale);
   const pawMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .7, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
   const pawCount = 64;
   const paws = new THREE.InstancedMesh(pawGeometry, pawMaterial, pawCount);
@@ -109,7 +112,7 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D, clip
     const routine = time % 18;
     const walking = !playing && (routine < 10 || routine > 15.5);
     const sniffing = !playing && routine >= 10 && routine < 13;
-    if (motion && walking) distance += delta * .38;
+    if (motion && walking) distance += delta * .38 * dogScale;
     if (dog) {
       position.copy(path.getPointAt(((distance / pathLength) % 1 + 1) % 1));
       tangent.copy(path.getTangentAt(((distance / pathLength) % 1 + 1) % 1));
@@ -119,13 +122,13 @@ export function createIslandLife(scene: THREE.Scene, model: THREE.Object3D, clip
       dog.rotation.y += headingDelta * (firstPose ? 1 : motion ? Math.min(delta * 6, 1) : 0);
       dog.position.copy(position);
       character?.update(delta, motion, { walking, sniffing, playing, dogElapsed });
-      if (winter && walking && motion && distance - lastPrintDistance > .16) {
+      if (winter && walking && motion && distance - lastPrintDistance > .16 * dogScale) {
         const side = printNumber % 4 < 2 ? -1 : 1;
         // Match the new rig's narrower forepaws and slightly wider rear stance.
-        for (const [forward, spread] of [[.245, .08], [-.24, .10]]) addPrint(dog.position.x + Math.cos(heading) * side * spread + Math.sin(heading) * forward, dog.position.z - Math.sin(heading) * side * spread + Math.cos(heading) * forward, heading);
+        for (const [forward, spread] of pawOffsets) addPrint(dog.position.x + Math.cos(heading) * side * spread + Math.sin(heading) * forward, dog.position.z - Math.sin(heading) * side * spread + Math.cos(heading) * forward, heading);
         lastPrintDistance = distance;
       }
-      dogPin.copy(dog.position).add(new THREE.Vector3(0, 1.05, 0));
+      dogPin.copy(dog.position).add(new THREE.Vector3(0, 1.05 * dogScale, 0));
       firstPose = false;
     } else dogPin.set(-.8, 1, 1.65);
 

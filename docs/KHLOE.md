@@ -4,9 +4,9 @@ Khloé uses the exact **Stylized Low Poly German Shepherd** selected by the site
 
 [Original model and author](https://sketchfab.com/3d-models/stylized-low-poly-german-shepherd-18d8fbe184c5448283762893b6ea9752). The original glTF, binary, license and pinned download receipt are in `assets-source/khloe/vendor/dreamnoms/`. They came from a public CC-BY redistribution in the QtMeshEditor motion corpus. The receipt records exact hashes and distinguishes mirror verification from an unavailable authenticated source comparison.
 
-The original model’s anatomy, attached ears, broad muzzle, faceted coat, skeleton and twelve animations are preserved. Khloé has simple matte charcoal eyes following Pip’s matte, near-rectangular eye style (`#222222` neutral black, roughness 0.86). The small beveled marks sit on the flat tan planes beneath the brow, clear of the sharp fold above the muzzle; there are no whites, irises, painted highlights or glossy lenses. Each shallow surface follows the face triangles and inherits their interpolated skin weights, including the forehead’s ear influences. A regression check measures attachment throughout all five runtime clips. Her pink collar follows the neck. The model is normalized to island scale without changing its body proportions.
+The original model’s anatomy, attached ears, broad muzzle, faceted coat, skeleton and twelve animations are preserved. The added eye pieces, collar and tag have been removed. Her expressions now gently lift the existing brow geometry with two shape keys; there are no separate facial accessories. These shapes share the skeletal animation clips, crossfades and pause behavior. The island character is 40% smaller than before (root scale 0.516 instead of 0.86), with pawprint size, stride spacing and walking speed reduced to match. Her full-size 404 portrait is unchanged in framing.
 
-`build_khloe.py` imports the vendored model, adds the details, and saves `khloe.blend`. The editable file retains all twelve original `DreamNoms_*` actions. Five runtime clips are sampled from those original performances:
+`build_khloe.py` imports the vendored model, adds the brow deformations, and saves `khloe.blend`. The editable file retains all twelve original `DreamNoms_*` actions. Five runtime clips are sampled from those original performances:
 
 | Clip | Source | Use |
 | --- | --- | --- |

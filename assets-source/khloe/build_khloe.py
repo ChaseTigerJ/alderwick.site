@@ -1,13 +1,11 @@
-"""Adapt DreamNoms's CC-BY German Shepherd without changing its original anatomy.
-Original mesh/rig/12 performances are vendored; eyes and collar are skin-bound.
+"""DreamNoms's CC-BY German Shepherd with subtle expressions in the original fur.
+No added eyes, collar or tag. Preserve the source mesh, rig and performances.
 Run with Blender --background --python assets-source/khloe/build_khloe.py.
 """
 from pathlib import Path
 import math
 import bpy
 from mathutils import Vector, Matrix, Quaternion
-from mathutils.bvhtree import BVHTree
-from mathutils.geometry import barycentric_transform
 
 HERE = Path(__file__).resolve().parent
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -18,7 +16,7 @@ rig = bpy.data.objects['metarig']
 source_root = bpy.data.objects['Sketchfab_model']
 for ob in list(bpy.data.objects):
     if ob.type == 'MESH' and ob.parent is None:
-        bpy.data.objects.remove(ob, do_unlink=True) # importer bone-display helper
+        bpy.data.objects.remove(ob, do_unlink=True)
     elif ob.name.startswith('Lamp') or ob.name == 'Cube':
         bpy.data.objects.remove(ob, do_unlink=True)
 for track in list(rig.animation_data.nla_tracks):
@@ -27,112 +25,6 @@ originals = {action.name: action for action in bpy.data.actions}
 rig.animation_data.action = originals['Idle1']
 scene.frame_set(0)
 bpy.context.view_layer.update()
-
-# Add small details in the original posed world space, then transform every
-# vertex back through the head's inverse pose into the existing bind skeleton.
-# This makes them real skins, never loose objects attached by approximate pivots.
-def material(name, color, roughness=.7):
-    mat=bpy.data.materials.new(name);mat.diffuse_color=(*color,1);mat.use_nodes=True
-    p=mat.node_tree.nodes.get('Principled BSDF')
-    p.inputs['Base Color'].default_value=(*color,1);p.inputs['Roughness'].default_value=roughness
-    return mat
-# Pip uses small matte charcoal marks, roughness .86. Use a neutral black
-# on Khloe's lighter, angled face; no iris, white, rim or painted shine.
-pip_eye_srgb=(0x22/255,0x22/255,0x22/255)
-pip_eye_linear=tuple(v/12.92 if v<=.04045 else ((v+.055)/1.055)**2.4 for v in pip_eye_srgb)
-eye_ink=material('KhloeEyes',pip_eye_linear,.86)
-eye_ink.node_tree.nodes['Principled BSDF'].inputs['Specular IOR Level'].default_value=0
-pink=material('KhloeRoseCollar',(.53,.09,.20))
-gold=material('KhloeBrassTag',(.53,.32,.09),.45)
-
-def bind(ob, bone_name):
-    bpy.context.view_layer.update()
-    world=ob.matrix_world.copy(); bone=rig.pose.bones[bone_name]
-    to_bind=bone.bone.matrix_local @ bone.matrix.inverted() @ rig.matrix_world.inverted() @ world
-    ob.data.transform(to_bind)
-    ob.parent=rig;ob.matrix_parent_inverse=Matrix.Identity(4);ob.matrix_basis=Matrix.Identity(4)
-    group=ob.vertex_groups.new(name=bone_name);group.add(list(range(len(ob.data.vertices))),1,'REPLACE')
-    modifier=ob.modifiers.new('Khloe character skin','ARMATURE');modifier.object=rig
-    return ob
-
-# Fit each eye to the actual posed face. The source's forehead includes ear
-# weights, so assigning the eyes only to the head causes visible separation.
-# Sample the coat triangles and transfer their blended weights to every vertex.
-face_vertices, face_triangles, face_weights = [], [], []
-depsgraph=bpy.context.evaluated_depsgraph_get()
-for ob in list(bpy.data.objects):
-    if ob.type != 'MESH':continue
-    evaluated=ob.evaluated_get(depsgraph);mesh=evaluated.to_mesh()
-    mesh.calc_loop_triangles();start=len(face_vertices)
-    face_vertices.extend(evaluated.matrix_world@v.co for v in mesh.vertices)
-    face_triangles.extend(tuple(start+i for i in triangle.vertices) for triangle in mesh.loop_triangles)
-    face_weights.extend({ob.vertex_groups[g.group].name:g.weight for g in v.groups} for v in ob.data.vertices)
-    evaluated.to_mesh_clear()
-face_surface=BVHTree.FromPolygons(face_vertices,face_triangles,all_triangles=True)
-rig_inverse=rig.matrix_world.inverted()
-skin_matrices={bone.name:bone.matrix@bone.bone.matrix_local.inverted() for bone in rig.pose.bones}
-
-def on_face(x,z,lift):
-    point,normal,index,_=face_surface.ray_cast(Vector((x,-25,z)),Vector((0,1,0)))
-    assert point is not None and point.y < -6, 'Eye escaped the front cheek surface'
-    triangle=face_triangles[index]
-    bary=barycentric_transform(point,*(face_vertices[i] for i in triangle),Vector((1,0,0)),Vector((0,1,0)),Vector((0,0,1)))
-    weights={}
-    for vertex,amount in zip(triangle,bary):
-        for name,weight in face_weights[vertex].items():weights[name]=weights.get(name,0)+max(0,amount)*weight
-    # Four influences are the shipping glTF contract. Invert this same blend
-    # when finding the bind-space position, rather than one approximate bone.
-    weights=dict(sorted(weights.items(),key=lambda item:item[1],reverse=True)[:4])
-    total=sum(weights.values());weights={name:value/total for name,value in weights.items()}
-    blend=Matrix(((0,0,0,0),)*4)
-    for name,weight in weights.items():blend+=skin_matrices[name]*weight
-    if normal.y>0:normal.negate()
-    return blend.inverted() @ rig_inverse @ (point+normal*lift),weights
-
-def fitted_eye(side):
-    # Quiet, near-rectangular marks in the same proportions as Pip's eyes.
-    # Place them on the tan cheek planes, below the brow and above the muzzle.
-    # Short beveled corners follow the faceted face rather than forming a rim.
-    center=Vector((side*1.42,11.97))
-    outline=[(-.20,-.29),(.20,-.29),(.26,-.23),(.26,.23),
-             (.20,.29),(-.20,.29),(-.26,.23),(-.26,-.23)]
-    # Split the long contour edges so the shallow surface follows cheek folds.
-    perimeter=[]
-    for i,start in enumerate(outline):
-        end=outline[(i+1)%len(outline)]
-        for step in range(4):perimeter.append(Vector(start).lerp(Vector(end),step/4))
-    positions,weights,faces=[],[],[]
-    rings,segments=6,len(perimeter)
-    def point(offset,fraction):
-        x,z=center+offset
-        lift=.028+.045*(1-fraction*fraction)
-        position,weight=on_face(x,z,lift)
-        positions.append(position);weights.append(weight)
-    point(Vector((0,0)),0)
-    for ring in range(1,rings+1):
-        fraction=ring/rings
-        for edge in perimeter:point(edge*fraction,fraction)
-    for segment in range(segments):faces.append((0,1+segment,1+(segment+1)%segments))
-    for ring in range(rings-1):
-        inner=1+ring*segments;outer=inner+segments
-        for segment in range(segments):
-            nxt=(segment+1)%segments
-            faces.extend([(inner+segment,outer+segment,outer+nxt),(inner+segment,outer+nxt,inner+nxt)])
-    mesh=bpy.data.meshes.new('KhloeFittedEyeMesh');mesh.from_pydata(positions,[],faces);mesh.update()
-    ob=bpy.data.objects.new('KhloeEyeSocket'+('Left' if side<0 else 'Right'),mesh);scene.collection.objects.link(ob);ob.parent=rig
-    groups={name:ob.vertex_groups.new(name=name) for name in sorted({name for weight in weights for name in weight})}
-    for vertex,weight in enumerate(weights):
-        for bone,amount in weight.items():groups[bone].add([vertex],amount,'REPLACE')
-    modifier=ob.modifiers.new('Khloe face skin','ARMATURE');modifier.object=rig
-    mesh.materials.append(eye_ink)
-    for face in mesh.polygons:face.use_smooth=False
-    ob['faceFittedEye']=True
-    return ob
-for side in (-1,1):fitted_eye(side)
-bpy.ops.mesh.primitive_torus_add(major_segments=16,minor_segments=6,major_radius=2.18,minor_radius=.29,location=(0,-2.75,8.00),rotation=(math.pi/2,0,0))
-collar=bpy.context.object;collar.name='KhloePinkCollar';collar.data.materials.append(pink);bind(collar,'spine.009_metarig')
-bpy.ops.mesh.primitive_uv_sphere_add(segments=8,ring_count=4,location=(0,-3.05,5.69))
-tag=bpy.context.object;tag.name='KhloeBrassTag';tag.scale=(.39,.13,.42);tag.data.materials.append(gold);bind(tag,'spine.009_metarig')
 
 for ob in list(bpy.data.objects):
     if not ob.name.startswith('Khloe'):ob.name='Khloe'+ob.name
@@ -143,16 +35,44 @@ rig.name='KhloeArmature'
 for mat in bpy.data.materials:
     if not mat.name.startswith('Khloe'):mat.name='KhloeSource_'+mat.name
 
+# Expressive brows are small deformations of the existing tan forehead, not
+# separate marks or meshes. A common world-space field moves shared boundary
+# vertices identically across material splits, preserving the original seams.
+brow_meshes=[ob for ob in bpy.data.objects if ob.type=='MESH']
+rig_inverse=rig.matrix_world.inverted()
+skin_matrices={bone.name:bone.matrix@bone.bone.matrix_local.inverted() for bone in rig.pose.bones}
+depsgraph=bpy.context.evaluated_depsgraph_get()
+for ob in brow_meshes:
+    evaluated=ob.evaluated_get(depsgraph);mesh=evaluated.to_mesh()
+    posed=[evaluated.matrix_world@v.co for v in mesh.vertices]
+    evaluated.to_mesh_clear()
+    ob.shape_key_add(name='Basis')
+    ob.data.shape_keys.name=ob.name+'BrowShapes'
+    for side,label in [(-1,'Left'),(1,'Right')]:
+        key=ob.shape_key_add(name='KhloeBrow'+label)
+        for vertex,point in zip(ob.data.vertices,posed):
+            x,y,z=point
+            influence=max(0,1-((x-side*1.4)/1.65)**2)*max(0,1-((y+6.6)/1.8)**2)*max(0,1-((z-12.2)/1.15)**2)
+            if influence<=0:continue
+            weights={ob.vertex_groups[g.group].name:g.weight for g in vertex.groups}
+            total=sum(weights.values())
+            blend=Matrix(((0,0,0,0),)*4)
+            for name,weight in weights.items():blend+=skin_matrices[name]*(weight/total)
+            to_world=rig.matrix_world@blend@rig_inverse@ob.matrix_world
+            # The largest lift is under 2.4 cm at canonical character scale.
+            delta=to_world.inverted().to_3x3()@Vector((side*.025,-.035,.42))*influence
+            key.data[vertex.index].co=vertex.co+delta
+        key.value=0
+
 root=bpy.data.objects.new('Khloe',None);scene.collection.objects.link(root)
 normalizer=bpy.data.objects.new('KhloeScale',None);scene.collection.objects.link(normalizer)
 normalizer.parent=root;source_root.parent=normalizer
-normalizer.scale=(.056,.056,.056)
-normalizer.location=(0,-.14,.028)
+normalizer.scale=(.056,.056,.056);normalizer.location=(0,-.14,.028)
 root['source']='DreamNoms — Stylized Low Poly German Shepherd, CC BY 4.0'
+# The runtime uses this for pawprints, walking speed and interaction placement.
+root['locomotionScale']=.6
 
-# Bake the original rig transforms into five runtime clips. The click sequence
-# simply joins the author's sit, scratch and stand performances, once, in 4.7s.
-# Preserve all 12 untouched source performances in the editable Blend as well.
+
 def sample(source_name, fraction):
     action=originals[source_name];rig.animation_data.action=action
     lo,hi=action.frame_range
@@ -160,6 +80,23 @@ def sample(source_name, fraction):
     scene.frame_set(int(frame),subframe=frame-int(frame));bpy.context.view_layer.update()
     return {b.name:(b.location.copy(),b.rotation_quaternion.copy(),b.scale.copy()) for b in rig.pose.bones}
 
+
+def pulse(t,start,end):
+    if t<=start or t>=end:return 0
+    return math.sin(math.pi*(t-start)/(end-start))**2
+
+
+def brow_pose(name,t,duration):
+    phase=t/duration
+    if name=='KhloeWalk':return (.025*math.sin(math.pi*phase)**2,)*2
+    if name=='KhloeSniff':return (.7*pulse(t,.1,1.1),.25*pulse(t,.4,1.25))
+    if name=='KhloeSitCurious':return (.38+.08*math.sin(2*math.pi*phase),.10+.04*math.sin(2*math.pi*phase))
+    if name=='KhloePlay':return (.65*pulse(t,.15,1.1)+.45*pulse(t,3.6,4.7),.3*pulse(t,.3,1.1)+.65*pulse(t,3.8,4.7))
+    return (.09*math.sin(math.pi*phase)**2,.06*math.sin(math.pi*phase)**2)
+
+
+# Shared multi-slot actions keep brow morphs and the original skeleton in one
+# runtime clip, using the same crossfades, pause and reduced-motion clock.
 def bake(name,duration,picker,tilt=False):
     samples=[]
     for frame in range(round(duration*30)+1):
@@ -168,8 +105,7 @@ def bake(name,duration,picker,tilt=False):
         pose=sample(source,fraction)
         if tilt:
             key='spine.011_metarig';loc,rot,scale=pose[key]
-            # Small inquisitive roll; eyes inherit this exact head transform.
-            pose[key]=(loc,rot @ Quaternion((0,1,0),math.radians(-12)),scale)
+            pose[key]=(loc,rot@Quaternion((0,1,0),math.radians(-12)),scale)
         samples.append(pose)
     action=bpy.data.actions.new(name);rig.animation_data.action=action
     for frame,pose in enumerate(samples):
@@ -178,6 +114,13 @@ def bake(name,duration,picker,tilt=False):
             bone.location,bone.rotation_quaternion,bone.scale=pose[bone.name]
             for prop in ('location','rotation_quaternion','scale'):
                 bone.keyframe_insert(data_path=prop,frame=frame,group=bone.name)
+    for ob in brow_meshes:
+        keys=ob.data.shape_keys;keys.animation_data_create()
+        slot=action.slots.new(id_type='KEY',name=keys.name)
+        keys.animation_data.action=action;keys.animation_data.action_slot=slot
+        for frame in range(len(samples)):
+            for key,value in zip(['KhloeBrowLeft','KhloeBrowRight'],brow_pose(name,frame/30,duration)):
+                block=keys.key_blocks[key];block.value=value;block.keyframe_insert(data_path='value',frame=frame)
     action.use_fake_user=True
     return action
 
@@ -192,8 +135,18 @@ bake('KhloePlay',4.7,play)
 bake('KhloeSitCurious',1.2,lambda t,d:('IdleSit',t/d),tilt=True)
 for old_name,action in originals.items():
     action.name='DreamNoms_'+old_name;action.use_fake_user=True
-rig.animation_data.action=bpy.data.actions['KhloeIdle']
+idle=bpy.data.actions['KhloeIdle'];rig.animation_data.action=idle
+for ob in brow_meshes:
+    keys=ob.data.shape_keys;keys.animation_data.action=idle
+    keys.animation_data.action_slot=next(slot for slot in idle.slots if slot.target_id_type=='KEY' and slot.name_display==keys.name)
+    # The glTF exporter discovers non-active shape-key actions through NLA.
+    # Stash each expression without layering it over the preview's idle pose.
+    for action in bpy.data.actions:
+        if not action.name.startswith('Khloe') or action==idle:continue
+        track=keys.animation_data.nla_tracks.new();track.name=action.name;track.mute=True
+        strip=track.strips.new(action.name,0,action)
+        strip.action_slot=next(slot for slot in action.slots if slot.target_id_type=='KEY' and slot.name_display==keys.name)
 scene.frame_set(0);scene.frame_start=0;scene.frame_end=141
 bpy.context.view_layer.update()
 bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'khloe.blend'))
-print('KHLOE: DreamNoms original anatomy and rig; bound eyes and collar; five runtime clips')
+print('KHLOE: original face and neck; integrated brow expressions; five shared runtime clips')

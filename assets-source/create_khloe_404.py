@@ -13,7 +13,12 @@ bpy.ops.wm.open_mainfile(filepath=str(ROOT/'assets-source/khloe/khloe.blend'))
 scene=bpy.context.scene
 scene.render.fps=30
 rig=bpy.data.objects['KhloeArmature']
-rig.animation_data.action=bpy.data.actions['KhloeSitCurious']
+portrait_action=bpy.data.actions['KhloeSitCurious']
+rig.animation_data.action=portrait_action
+for ob in bpy.data.objects:
+ if ob.type=='MESH' and ob.data.shape_keys:
+  keys=ob.data.shape_keys;keys.animation_data.action=portrait_action
+  keys.animation_data.action_slot=next(slot for slot in portrait_action.slots if slot.target_id_type=='KEY' and slot.name_display==keys.name)
 rig.data.pose_position='POSE'
 scene.frame_set(21) # 0.7s: grounded sit and 12-degree head tilt.
 bpy.context.view_layer.update()

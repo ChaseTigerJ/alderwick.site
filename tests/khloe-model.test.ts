@@ -47,6 +47,9 @@ test('the shipping character retains a weighted skeleton and complete authored p
 test('all character poses remain finite and at island scale, with no detached or exploding skin', async () => {
   const { dog, skins, animations } = await character();
   dog.position.set(0, 0, 0); dog.rotation.set(0, 0, 0);
+  assert.ok(dog.scale.toArray().every(value => Math.abs(value - .86 * .6) < 1e-6), '40% smaller on the island');
+  assert.equal(dog.userData.locomotionScale, .6);
+  dog.scale.setScalar(.86); // Check skin integrity at the established reference size.
   const mixer = new THREE.AnimationMixer(dog), vertex = new THREE.Vector3();
   const bounds = new THREE.Box3();
   for (const clip of animations.filter(clip => clip.name.startsWith('Khloe'))) {
@@ -70,46 +73,40 @@ test('all character poses remain finite and at island scale, with no detached or
   mixer.stopAllAction(); mixer.uncacheRoot(dog);
 });
 
-test('the smaller eyes stay against the actual face through every performance', async () => {
+test('brow expressions deform the original face in every clip without added eyes or collar', async () => {
   const { dog, skins, animations } = await character();
-  dog.position.set(0, 0, 0); dog.rotation.set(0, 0, 0);
-  const eyes = skins.filter(skin => {
-    let node: THREE.Object3D | null = skin;
-    while (node && node !== dog) {
-      if (node.userData.faceFittedEye) return true;
-      node = node.parent;
-    }
-    return false;
-  });
-  const coat = skins.filter(skin => skin.name.startsWith('KhloeCube_'));
-  assert.ok(eyes.length >= 2 && coat.length > 0, 'fitted eyes and original face are exported');
-  const mixer = new THREE.AnimationMixer(dog), point = new THREE.Vector3(), closest = new THREE.Vector3();
-  let largestGap = 0;
-  for (const clip of animations.filter(clip => clip.name.startsWith('Khloe'))) {
-    mixer.stopAllAction();
-    const action = mixer.clipAction(clip).setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play();
-    for (let frame = 0; frame <= 12; frame++) {
-      action.time = clip.duration * frame / 12; mixer.update(0); dog.updateMatrixWorld(true);
-      const triangles: THREE.Triangle[] = [];
-      for (const skin of coat) {
-        const vertices = Array.from({ length: skin.geometry.getAttribute('position').count }, (_, index) =>
-          skin.getVertexPosition(index, new THREE.Vector3()).applyMatrix4(skin.matrixWorld));
-        const indices = skin.geometry.index;
-        for (let i = 0; i < (indices?.count ?? vertices.length); i += 3) {
-          triangles.push(new THREE.Triangle(...[0, 1, 2].map(j => vertices[indices ? indices.getX(i + j) : i + j]) as [THREE.Vector3, THREE.Vector3, THREE.Vector3]));
-        }
-      }
-      for (const eye of eyes) {
-        for (let vertex = 0; vertex < eye.geometry.getAttribute('position').count; vertex += 16) {
-          eye.getVertexPosition(vertex, point).applyMatrix4(eye.matrixWorld);
-          let distance = Infinity;
-          for (const triangle of triangles) distance = Math.min(distance, triangle.closestPointToPoint(point, closest).distanceToSquared(point));
-          largestGap = Math.max(largestGap, Math.sqrt(distance));
-          assert.ok(distance < .016 ** 2, `${clip.name}: eye separates from the face by ${Math.sqrt(distance).toFixed(4)}`);
-        }
+  assert.equal(skins.length, 5, 'only the five original material meshes remain');
+  dog.traverse(node => assert.ok(!/eye|collar|tag/i.test(node.name), `unexpected face or neck accessory: ${node.name}`));
+  const mixer = new THREE.AnimationMixer(dog);
+  let largestChange = 0;
+  for (const skin of skins) {
+    assert.deepEqual(Object.keys(skin.morphTargetDictionary ?? {}).sort(), ['KhloeBrowLeft', 'KhloeBrowRight']);
+    const base = skin.geometry.getAttribute('position');
+    for (const morph of skin.geometry.morphAttributes.position) {
+      for (let i = 0; i < base.count; i++) {
+        const delta = new THREE.Vector3().fromBufferAttribute(morph, i);
+        if (!skin.geometry.morphTargetsRelative) delta.sub(new THREE.Vector3().fromBufferAttribute(base, i));
+        assert.ok(delta.toArray().every(Number.isFinite), 'morph cannot break skin geometry');
+        largestChange = Math.max(largestChange, delta.length());
       }
     }
   }
-  assert.ok(largestGap > 0, 'eye remains a shallow visible surface, not missing geometry');
+  assert.ok(largestChange > 0, 'brows actually deform existing geometry');
+  for (const clip of animations.filter(clip => clip.name.startsWith('Khloe'))) {
+    const weights = clip.tracks.filter(track => track.name.endsWith('.morphTargetInfluences'));
+    assert.equal(weights.length, skins.length, `${clip.name} includes every original material seam`);
+    for (const track of weights) {
+      assert.ok([...track.values].every(value => Number.isFinite(value) && value >= 0 && value <= 1), 'bounded expression weights');
+      assert.ok(Math.max(...track.values) - Math.min(...track.values) > .01, 'expression changes during playback');
+    }
+    mixer.stopAllAction();
+    const action = mixer.clipAction(clip).setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play();
+    let expressed = false;
+    for (let frame = 0; frame <= 12; frame++) {
+      action.time = clip.duration * frame / 12; mixer.update(0);
+      expressed ||= skins.some(skin => skin.morphTargetInfluences!.some(value => value > .01));
+    }
+    assert.ok(expressed, `${clip.name} drives the shipped morphs`);
+  }
   mixer.stopAllAction(); mixer.uncacheRoot(dog);
 });
