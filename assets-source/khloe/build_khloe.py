@@ -36,11 +36,12 @@ def material(name, color, roughness=.7):
     p=mat.node_tree.nodes.get('Principled BSDF')
     p.inputs['Base Color'].default_value=(*color,1);p.inputs['Roughness'].default_value=roughness
     return mat
-ink=material('KhloeEyeRim',(.014,.010,.008))
-cream=material('KhloeEyeWhite',(.78,.73,.61))
-amber=material('KhloeAmberEyes',(.23,.10,.025),.32)
-pupil=material('KhloePupils',(.005,.004,.003),.28)
-glint=material('KhloeEyeGlint',(1,.98,.91),.3)
+# Pip uses small matte charcoal marks, roughness .86. Use a neutral black
+# on Khloe's lighter, angled face; no iris, white, rim or painted shine.
+pip_eye_srgb=(0x22/255,0x22/255,0x22/255)
+pip_eye_linear=tuple(v/12.92 if v<=.04045 else ((v+.055)/1.055)**2.4 for v in pip_eye_srgb)
+eye_ink=material('KhloeEyes',pip_eye_linear,.86)
+eye_ink.node_tree.nodes['Principled BSDF'].inputs['Specular IOR Level'].default_value=0
 pink=material('KhloeRoseCollar',(.53,.09,.20))
 gold=material('KhloeBrassTag',(.53,.32,.09),.45)
 
@@ -89,58 +90,42 @@ def on_face(x,z,lift):
     return blend.inverted() @ rig_inverse @ (point+normal*lift),weights
 
 def fitted_eye(side):
-    center=Vector((side*1.42,11.66))
-    # One continuous eye surface with colored rings: no overlapping eyeball,
-    # iris and pupil shells that can intersect when the forehead deforms.
-    bands=[((0,0),pupil),((.27,.34),pupil),((.455,.475),amber),((.55,.515),cream),((.62,.58),ink)]
-    rings=[(Vector((0,0)),0)]
-    for band in range(1,len(bands)):
-        for step in range(1,5):
-            radius=Vector(bands[band-1][0]).lerp(Vector(bands[band][0]),step/4)
-            rings.append((radius,band-1))
-    materials=[pupil,amber,cream,ink]
-    positions,weights,faces,face_materials=[],[],[],[]
-    segments=32
-    def point(u,v):
-        x,z=center+Vector((u,v))
-        radial=(u/.62)**2+(v/.58)**2
-        lift=.025+.19*max(0,1-radial)
+    # Quiet, near-rectangular marks in the same proportions as Pip's eyes.
+    # Place them on the tan cheek planes, below the brow and above the muzzle.
+    # Short beveled corners follow the faceted face rather than forming a rim.
+    center=Vector((side*1.42,11.97))
+    outline=[(-.20,-.29),(.20,-.29),(.26,-.23),(.26,.23),
+             (.20,.29),(-.20,.29),(-.26,.23),(-.26,-.23)]
+    # Split the long contour edges so the shallow surface follows cheek folds.
+    perimeter=[]
+    for i,start in enumerate(outline):
+        end=outline[(i+1)%len(outline)]
+        for step in range(4):perimeter.append(Vector(start).lerp(Vector(end),step/4))
+    positions,weights,faces=[],[],[]
+    rings,segments=6,len(perimeter)
+    def point(offset,fraction):
+        x,z=center+offset
+        lift=.028+.045*(1-fraction*fraction)
         position,weight=on_face(x,z,lift)
         positions.append(position);weights.append(weight)
-    point(0,0)
-    for radius,_ in rings[1:]:
-        for segment in range(segments):
-            angle=2*math.pi*segment/segments
-            point(math.cos(angle)*radius.x,math.sin(angle)*radius.y)
-    for segment in range(segments):
-        faces.append((0,1+segment,1+(segment+1)%segments));face_materials.append(0)
-    for ring in range(len(rings)-2):
+    point(Vector((0,0)),0)
+    for ring in range(1,rings+1):
+        fraction=ring/rings
+        for edge in perimeter:point(edge*fraction,fraction)
+    for segment in range(segments):faces.append((0,1+segment,1+(segment+1)%segments))
+    for ring in range(rings-1):
         inner=1+ring*segments;outer=inner+segments
         for segment in range(segments):
             nxt=(segment+1)%segments
             faces.extend([(inner+segment,outer+segment,outer+nxt),(inner+segment,outer+nxt,inner+nxt)])
-            face_materials.extend([rings[ring+2][1]]*2)
-    # An inlaid glint shares the same surface; classify a small patch of pupil
-    # faces instead of adding another floating piece of geometry.
-    materials.append(glint)
-    for i,face in enumerate(faces):
-        if face_materials[i] != 0:continue
-        # Reconstruct patch coordinates from their ring/segment positions.
-        coords=[]
-        for vertex in face:
-            if vertex==0:coords.append(Vector((0,0)));continue
-            ring=(vertex-1)//segments+1;angle=2*math.pi*((vertex-1)%segments)/segments
-            radius=rings[ring][0];coords.append(Vector((math.cos(angle)*radius.x,math.sin(angle)*radius.y)))
-        midpoint=sum(coords,Vector((0,0)))/3
-        if ((midpoint.x+.11)/.09)**2+((midpoint.y-.15)/.105)**2<1:face_materials[i]=4
     mesh=bpy.data.meshes.new('KhloeFittedEyeMesh');mesh.from_pydata(positions,[],faces);mesh.update()
     ob=bpy.data.objects.new('KhloeEyeSocket'+('Left' if side<0 else 'Right'),mesh);scene.collection.objects.link(ob);ob.parent=rig
     groups={name:ob.vertex_groups.new(name=name) for name in sorted({name for weight in weights for name in weight})}
     for vertex,weight in enumerate(weights):
         for bone,amount in weight.items():groups[bone].add([vertex],amount,'REPLACE')
     modifier=ob.modifiers.new('Khloe face skin','ARMATURE');modifier.object=rig
-    for mat in materials:mesh.materials.append(mat)
-    for face,index in zip(mesh.polygons,face_materials):face.material_index=index;face.use_smooth=True
+    mesh.materials.append(eye_ink)
+    for face in mesh.polygons:face.use_smooth=False
     ob['faceFittedEye']=True
     return ob
 for side in (-1,1):fitted_eye(side)
@@ -153,7 +138,7 @@ for ob in list(bpy.data.objects):
     if not ob.name.startswith('Khloe'):ob.name='Khloe'+ob.name
     ob['khloeCharacter']=True
     if ob.type=='MESH':
-        for face in ob.data.polygons:face.use_smooth=bool(ob.get('faceFittedEye'))
+        for face in ob.data.polygons:face.use_smooth=False
 rig.name='KhloeArmature'
 for mat in bpy.data.materials:
     if not mat.name.startswith('Khloe'):mat.name='KhloeSource_'+mat.name
