@@ -75,7 +75,7 @@ test('all character poses remain finite and at island scale, with no detached or
 
 test('brow expressions deform the original face in every clip without added eyes or collar', async () => {
   const { dog, skins, animations } = await character();
-  assert.equal(skins.length, 5, 'only the five original material meshes remain');
+  assert.equal(skins.length, 7, 'five original material meshes plus two fitted brow markings');
   dog.traverse(node => assert.ok(!/eye|collar|tag/i.test(node.name), `unexpected face or neck accessory: ${node.name}`));
   const mixer = new THREE.AnimationMixer(dog);
   let largestChange = 0;
@@ -108,5 +108,56 @@ test('brow expressions deform the original face in every clip without added eyes
     }
     assert.ok(expressed, `${clip.name} drives the shipped morphs`);
   }
+  mixer.stopAllAction(); mixer.uncacheRoot(dog);
+});
+
+// Check actual deformed surfaces: shared morph names alone do not prove attachment.
+test('visible brows remain on the forehead through every exported performance', async () => {
+  const { dog, skins, animations } = await character();
+  const brows = skins.filter(skin => skin.userData.faceFittedBrow);
+  const coat = skins.filter(skin => !skin.userData.faceFittedBrow);
+  assert.equal(brows.length, 2);
+  for (const brow of brows) {
+    const material = brow.material as THREE.MeshStandardMaterial;
+    assert.ok(material.color.getHex() < 0x555555, 'brows contrast against the tan forehead');
+    assert.ok(material.roughness > .8, 'matte character style');
+  }
+  const mixer = new THREE.AnimationMixer(dog), point = new THREE.Vector3(), closest = new THREE.Vector3();
+  for (const clip of animations.filter(clip => clip.name.startsWith('Khloe'))) {
+    mixer.stopAllAction();
+    const action = mixer.clipAction(clip).setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play();
+    for (let frame = 0; frame <= 12; frame++) {
+      action.time = clip.duration * frame / 12; mixer.update(0); dog.updateMatrixWorld(true);
+      const triangles: THREE.Triangle[] = [];
+      for (const skin of coat) {
+        const vertices = Array.from({ length: skin.geometry.getAttribute('position').count }, (_, index) =>
+          skin.getVertexPosition(index, new THREE.Vector3()).applyMatrix4(skin.matrixWorld));
+        const indices = skin.geometry.index;
+        for (let i = 0; i < (indices?.count ?? vertices.length); i += 3) {
+          triangles.push(new THREE.Triangle(...[0, 1, 2].map(j => vertices[indices ? indices.getX(i + j) : i + j]) as [THREE.Vector3, THREE.Vector3, THREE.Vector3]));
+        }
+      }
+      for (const brow of brows) {
+        for (let vertex = 0; vertex < brow.geometry.getAttribute('position').count; vertex += 3) {
+          brow.getVertexPosition(vertex, point).applyMatrix4(brow.matrixWorld);
+          let distance = Infinity;
+          for (const triangle of triangles) distance = Math.min(distance, triangle.closestPointToPoint(point, closest).distanceToSquared(point));
+          assert.ok(distance < .007 ** 2, `${clip.name}: brow separates from forehead by ${Math.sqrt(distance)}`);
+        }
+      }
+    }
+  }
+  // Freeze the skeleton, then isolate the marking's actual expression travel.
+  mixer.stopAllAction(); mixer.clipAction(THREE.AnimationClip.findByName(animations, 'KhloeIdle')!).play(); mixer.update(0); dog.updateMatrixWorld(true);
+  let travel = 0;
+  for (const brow of brows) {
+    const original = [...brow.morphTargetInfluences!];
+    brow.morphTargetInfluences!.fill(0);
+    const resting = Array.from({length:brow.geometry.getAttribute('position').count}, (_,i) => brow.getVertexPosition(i,new THREE.Vector3()).applyMatrix4(brow.matrixWorld));
+    brow.morphTargetInfluences!.fill(1);
+    resting.forEach((v,i) => {travel=Math.max(travel,v.distanceTo(brow.getVertexPosition(i,new THREE.Vector3()).applyMatrix4(brow.matrixWorld)));});
+    brow.morphTargetInfluences = original;
+  }
+  assert.ok(travel > .01 && travel < .035, `readable brow lift at island scale: ${travel}`);
   mixer.stopAllAction(); mixer.uncacheRoot(dog);
 });
